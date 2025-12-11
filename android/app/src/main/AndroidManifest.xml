@@ -16,30 +16,18 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- 앱 아이콘 눌러서 실행 -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- 다른 앱에서 파일 열기 대상일 때 -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-
-                <!-- 텍스트 파일 -->
-                <data android:mimeType="text/plain" />
-                <data android:mimeType="text/*" />
-
-                <!-- pdf -->
-                <data android:mimeType="application/pdf" />
-
-                <!-- docx 워드 -->
-                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
-
-                <!-- 이미지 전반 -->
-                <data android:mimeType="image/*" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:mimeType="*/*" />
             </intent-filter>
 
         </activity>

@@ -102,7 +102,6 @@ class FileHomePageState extends State<FileHomePage> {
         ),
       );
     } else if (file.isExternalOnly) {
-      // 현재는 외부 전용으로 열 파일 형식이 없음
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -157,7 +156,7 @@ class FileHomePageState extends State<FileHomePage> {
   Future<void> _openRecent(RecentFileEntry entry) async {
     final ViewerPickResult result =
     await widget.fileService.loadFileForViewer(
-      entry.fileId,
+      entry.fileId, // 실제 타입에 맞게 사용 중인 필드
       displayPath: entry.displayPath,
     );
 
@@ -179,7 +178,7 @@ class FileHomePageState extends State<FileHomePage> {
         ),
       );
 
-      // 여기서 실패한 항목을 자동으로 최근 목록에서 제거
+      // 열기 실패한 항목은 자동으로 최근 목록에서 제거
       await recentStore.removeByFileId(entry.fileId);
 
       return;
@@ -188,7 +187,6 @@ class FileHomePageState extends State<FileHomePage> {
     final ViewerFile file = result.file!;
     await _openFileViewerOrExternal(file);
   }
-
 
   Widget _buildRecentTile(RecentFileEntry entry) {
     IconData icon;
@@ -217,6 +215,10 @@ class FileHomePageState extends State<FileHomePage> {
       ),
       child: ListTile(
         dense: true,
+        contentPadding: const EdgeInsets.only(
+          left: 12,
+          right: 12, // 오른쪽 여백을 늘려서 버튼을 약간 왼쪽으로
+        ),
         leading: Icon(
           icon,
           size: 22,
@@ -227,31 +229,47 @@ class FileHomePageState extends State<FileHomePage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        subtitle: Text(
+          entry.displayPath,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.black54,
+          ),
+        ),
         onTap: () => _openRecent(entry),
+        trailing: SizedBox(
+          width: 48, // 버튼 박스 폭도 조금 넓게
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: () async {
+                await recentStore.removeByFileId(entry.fileId);
+              },
+              borderRadius: BorderRadius.circular(22),
+              child: Container(
+                width: 36,  // 버튼 지름을 조금 키움
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.black54,
+                    width: 1,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.delete_outline,
+                  size: 20, // 아이콘도 약간 키움
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildDismissibleRecentTile(RecentFileEntry entry) {
-    return Dismissible(
-      key: ValueKey<String>(entry.fileId),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        color: Colors.redAccent,
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-        ),
-      ),
-      onDismissed: (DismissDirection direction) async {
-        await recentStore.removeByFileId(entry.fileId);
-      },
-      child: _buildRecentTile(entry),
-    );
-  }
 
   Widget _buildFilterDropdown() {
     final AppLocalizations t = AppLocalizations.of(context)!;
@@ -353,7 +371,7 @@ class FileHomePageState extends State<FileHomePage> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: source.length,
       itemBuilder: (BuildContext context, int index) {
-        return _buildDismissibleRecentTile(source[index]);
+        return _buildRecentTile(source[index]);
       },
     );
   }

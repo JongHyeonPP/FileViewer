@@ -1,4 +1,4 @@
-package com.opjh.my_project
+package com.opjh.fileviewer
 
 import android.app.Activity
 import android.content.Intent
@@ -152,7 +152,6 @@ class MainActivity : FlutterActivity() {
             return
         }
 
-        // ACTION_OPEN_DOCUMENT 로 받은 Uri 는 나중에 다시 열 수 있도록 퍼시스턴트 권한 요청
         val flags = data.flags
         val takeFlags = flags and (
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or
