@@ -1,11 +1,11 @@
-import 'dart:async';
+// lib/services/file_service.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:charset_converter/charset_converter.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:flutter/services.dart';
+import 'package:charset_converter/charset_converter.dart';
+import 'package:open_filex/open_filex.dart';
 
 import 'supported_file_types.dart';
 
@@ -21,22 +21,19 @@ enum FileServiceErrorType {
 }
 
 class ViewerFile {
-  final String fileId;        // 안드로이드에서는 content uri 문자열, 그 외에서는 파일 경로
-  final String displayPath;   // 사용자에게 보여 줄 경로 문자열
+  final String fileId;        // 최근 목록에서 사용할 파일 식별자
+  final String path;          // 실제 파일 경로
+  final String displayPath;   // 사용자에게 보여 줄 경로 텍스트
   final String extension;
   final String? textContent;
 
   ViewerFile({
     required this.fileId,
+    required this.path,
     required this.displayPath,
     required this.extension,
     required this.textContent,
   });
-
-  // 예전 코드 호환용
-  String get path {
-    return fileId;
-  }
 
   bool get isTxt {
     return SupportedFileTypes.isTextExtension(extension);
@@ -54,13 +51,17 @@ class ViewerFile {
     return SupportedFileTypes.isImageExtension(extension);
   }
 
-  bool get isSupportedForInAppView {
-    return isTxt || isDocx || isPdf || isImage;
+  bool get isXlsx {
+    return extension == 'xlsx';
   }
 
-  // 현재는 외부 전용 형식 없음
+  bool get isSupportedForInAppView {
+    return isTxt || isDocx || isPdf || isImage || isXlsx;
+  }
+
   bool get isExternalOnly {
-    return false;
+    return !isSupportedForInAppView &&
+        SupportedFileTypes.isSupportedExtension(extension);
   }
 }
 
@@ -88,71 +89,45 @@ class _DecodedText {
 }
 
 class FileService {
-  static const MethodChannel _pickerChannel =
-  MethodChannel('app.channel/file_picker');
-  static const MethodChannel _contentChannel =
-  MethodChannel('app.channel/file_content');
+  // 지원하는 모든 확장자 목록
+  List<String> _allSupportedExtensions() {
+    final Set<String> set = <String>{
+      ...SupportedFileTypes.textExtensions,
+      ...SupportedFileTypes.officeOpenXmlExtensions,
+      ...SupportedFileTypes.pdfExtensions,
+      ...SupportedFileTypes.imageExtensions,
+    };
+    final List<String> list = set.toList();
+    list.sort();
+    return list;
+  }
 
+  // 안드로이드용 MIME 타입 필터
+  List<String> _allSupportedMimeTypes() {
+    return <String>[
+      'text/plain', // txt
+      'application/pdf', // pdf
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+      'image/*', // 이미지 전반
+    ];
+  }
+
+  // 탐색기에서 파일 선택
   Future<ViewerPickResult?> pickFileForViewer() async {
-    if (Platform.isAndroid) {
-      try {
-        final dynamic result =
-        await _pickerChannel.invokeMethod<dynamic>('pickFile');
+    final List<String> exts = _allSupportedExtensions();
 
-        if (result == null) {
-          return null;
-        }
-
-        if (result is! Map) {
-          return ViewerPickResult.error(
-            '파일을 여는 중 오류가 발생했습니다',
-            FileServiceErrorType.textReloadFailed,
-          );
-        }
-
-        final String? fileId = result['fileId'] as String?;
-        final String? displayPath = result['displayPath'] as String?;
-
-        if (fileId == null || fileId.isEmpty) {
-          return ViewerPickResult.error(
-            '파일을 여는 중 오류가 발생했습니다',
-            FileServiceErrorType.textReloadFailed,
-          );
-        }
-
-        final String ext =
-        _extractExtensionFromDisplayPath(displayPath ?? fileId);
-
-        if (!SupportedFileTypes.isSupportedExtension(ext)) {
-          return ViewerPickResult.error(
-            '지원하지 않는 파일 형식입니다',
-            FileServiceErrorType.unsupportedFormat,
-          );
-        }
-
-        final ViewerFile file = await _buildViewerFileFromId(
-          fileId: fileId,
-          displayPath: displayPath ?? fileId,
-          extension: ext,
-        );
-
-        return ViewerPickResult.success(file);
-      } catch (_) {
-        return ViewerPickResult.error(
-          '파일을 여는 중 오류가 발생했습니다',
-          FileServiceErrorType.textReloadFailed,
-        );
-      }
-    }
-
-    // 안드로이드가 아닌 경우에는 기존 file_selector 사용
-    const XTypeGroup anyGroup = XTypeGroup(
-      label: 'any',
-      extensions: <String>[],
+    // 확장자와 MIME 타입을 동시에 지정
+    final XTypeGroup group = XTypeGroup(
+      label: 'supported',
+      extensions: exts,
+      mimeTypes: _allSupportedMimeTypes(),
     );
 
     final XFile? file = await openFile(
-      acceptedTypeGroups: <XTypeGroup>[anyGroup],
+      acceptedTypeGroups: <XTypeGroup>[
+        group,
+      ],
     );
 
     if (file == null) {
@@ -160,25 +135,32 @@ class FileService {
     }
 
     final String path = file.path;
-    final String ext = _extractExtensionFromDisplayPath(path);
+    final String extension = _extractExtension(path);
 
-    if (!SupportedFileTypes.isSupportedExtension(ext)) {
+    // 탐색기가 필터를 완벽히 지키지 않는 경우를 위한 2차 방어
+    if (!SupportedFileTypes.isSupportedExtension(extension)) {
       return ViewerPickResult.error(
         '지원하지 않는 파일 형식입니다',
         FileServiceErrorType.unsupportedFormat,
       );
     }
 
-    ViewerFile viewerFile;
-    if (SupportedFileTypes.isTextExtension(ext)) {
+    final String displayPath = path;
+    final String fileId = path;
+
+    if (SupportedFileTypes.isTextExtension(extension)) {
+      final Uint8List bytes = await file.readAsBytes();
       try {
-        final Uint8List bytes = await file.readAsBytes();
         final _DecodedText decoded = await _decodeTxtBytes(bytes);
-        viewerFile = ViewerFile(
-          fileId: path,
-          displayPath: path,
-          extension: ext,
-          textContent: decoded.text,
+
+        return ViewerPickResult.success(
+          ViewerFile(
+            fileId: fileId,
+            path: path,
+            displayPath: displayPath,
+            extension: extension,
+            textContent: decoded.text,
+          ),
         );
       } catch (_) {
         return ViewerPickResult.error(
@@ -186,84 +168,81 @@ class FileService {
           FileServiceErrorType.textEncodingUnknown,
         );
       }
-    } else {
-      viewerFile = ViewerFile(
-        fileId: path,
-        displayPath: path,
-        extension: ext,
-        textContent: null,
-      );
     }
 
-    return ViewerPickResult.success(viewerFile);
+    return ViewerPickResult.success(
+      ViewerFile(
+        fileId: fileId,
+        path: path,
+        displayPath: displayPath,
+        extension: extension,
+        textContent: null,
+      ),
+    );
   }
 
+  // 최근 목록이나 공유 인텐트에서 다시 여는 경우
   Future<ViewerPickResult> loadFileForViewer(
-      String fileId, {
+      String path, {
         String? displayPath,
       }) async {
-    final String effectiveDisplayPath = displayPath ?? fileId;
-    final String ext = _extractExtensionFromDisplayPath(effectiveDisplayPath);
+    final String extension = _extractExtension(path);
 
-    if (!SupportedFileTypes.isSupportedExtension(ext)) {
+    if (!SupportedFileTypes.isSupportedExtension(extension)) {
       return ViewerPickResult.error(
         '지원하지 않는 파일 형식입니다',
         FileServiceErrorType.unsupportedFormat,
       );
     }
 
-    try {
-      final ViewerFile file = await _buildViewerFileFromId(
-        fileId: fileId,
-        displayPath: effectiveDisplayPath,
-        extension: ext,
-      );
-
-      return ViewerPickResult.success(file);
-    } catch (_) {
-      return ViewerPickResult.error(
-        '텍스트 파일을 다시 여는 중 오류가 발생했습니다',
-        FileServiceErrorType.textReloadFailed,
-      );
-    }
-  }
-
-  Future<ViewerFile> _buildViewerFileFromId({
-    required String fileId,
-    required String displayPath,
-    required String extension,
-  }) async {
-    String? textContent;
+    final String effectiveDisplayPath = displayPath ?? path;
+    final String fileId = path;
 
     if (SupportedFileTypes.isTextExtension(extension)) {
-      final Uint8List bytes = await readRawBytes(fileId);
-      final _DecodedText decoded = await _decodeTxtBytes(bytes);
-      textContent = decoded.text;
+      try {
+        final Uint8List bytes = await File(path).readAsBytes();
+        final _DecodedText decoded = await _decodeTxtBytes(bytes);
+
+        return ViewerPickResult.success(
+          ViewerFile(
+            fileId: fileId,
+            path: path,
+            displayPath: effectiveDisplayPath,
+            extension: extension,
+            textContent: decoded.text,
+          ),
+        );
+      } catch (_) {
+        return ViewerPickResult.error(
+          '텍스트 파일을 다시 여는 중 오류가 발생했습니다',
+          FileServiceErrorType.textReloadFailed,
+        );
+      }
     }
 
-    return ViewerFile(
-      fileId: fileId,
-      displayPath: displayPath,
-      extension: extension,
-      textContent: textContent,
+    if (SupportedFileTypes.isDocExtension(extension) ||
+        SupportedFileTypes.isPdfExtension(extension) ||
+        SupportedFileTypes.isImageExtension(extension) ||
+        extension == 'xlsx') {
+      return ViewerPickResult.success(
+        ViewerFile(
+          fileId: fileId,
+          path: path,
+          displayPath: effectiveDisplayPath,
+          extension: extension,
+          textContent: null,
+        ),
+      );
+    }
+
+    return ViewerPickResult.error(
+      '지원하지 않는 파일 형식입니다',
+      FileServiceErrorType.unsupportedFormat,
     );
   }
 
-  Future<Uint8List> readRawBytes(String fileId) async {
-    if (Platform.isAndroid) {
-      final Uint8List? bytes =
-      await _contentChannel.invokeMethod<Uint8List>(
-        'readBytes',
-        <String, dynamic>{'fileId': fileId},
-      );
-      if (bytes == null) {
-        throw const FormatException('no bytes');
-      }
-      return bytes;
-    }
-
-    final File file = File(fileId);
-    return file.readAsBytes();
+  Future<void> openExternalFile(String path) async {
+    await OpenFilex.open(path);
   }
 
   Future<_DecodedText> _decodeTxtBytes(Uint8List bytes) async {
@@ -283,7 +262,7 @@ class FileService {
     }
   }
 
-  String _extractExtensionFromDisplayPath(String path) {
+  String _extractExtension(String path) {
     final int dotIndex = path.lastIndexOf('.');
     if (dotIndex == -1) {
       return '';

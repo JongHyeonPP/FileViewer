@@ -1,3 +1,4 @@
+// lib/services/recent_files_store.dart
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -7,24 +8,19 @@ import 'file_service.dart';
 import 'supported_file_types.dart';
 
 class RecentFileEntry {
-  final String fileId;
+  final String actualPath;
   final String displayPath;
   final String name;
   final String extension;
   final DateTime lastOpenedAt;
 
   RecentFileEntry({
-    required this.fileId,
+    required this.actualPath,
     required this.displayPath,
     required this.name,
     required this.extension,
     required this.lastOpenedAt,
   });
-
-  // 예전 코드 호환용
-  String get actualPath {
-    return fileId;
-  }
 
   bool get isTxt {
     return SupportedFileTypes.isTextExtension(extension);
@@ -44,7 +40,7 @@ class RecentFileEntry {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'fileId': fileId,
+      'actualPath': actualPath,
       'displayPath': displayPath,
       'name': name,
       'extension': extension,
@@ -53,27 +49,15 @@ class RecentFileEntry {
   }
 
   factory RecentFileEntry.fromJson(Map<String, dynamic> json) {
-    final String fileId =
-        json['fileId'] as String? ?? json['actualPath'] as String? ?? '';
-    final String displayPath =
-        json['displayPath'] as String? ?? fileId;
-    final String name =
-        json['name'] as String? ?? '';
-    final String extension =
-        json['extension'] as String? ?? '';
-    final String rawTime =
-        json['lastOpenedAt'] as String? ?? '';
-
-    final DateTime parsedTime =
-        DateTime.tryParse(rawTime) ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-
     return RecentFileEntry(
-      fileId: fileId,
-      displayPath: displayPath,
-      name: name,
-      extension: extension,
-      lastOpenedAt: parsedTime,
+      actualPath: json['actualPath'] as String? ?? '',
+      displayPath: json['displayPath'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      extension: json['extension'] as String? ?? '',
+      lastOpenedAt: DateTime.tryParse(
+        json['lastOpenedAt'] as String? ?? '',
+      ) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
 }
@@ -107,7 +91,7 @@ class RecentFilesStore extends ChangeNotifier {
           final Map<String, dynamic> map =
           jsonDecode(raw) as Map<String, dynamic>;
           final RecentFileEntry entry = RecentFileEntry.fromJson(map);
-          if (entry.fileId.isNotEmpty && entry.name.isNotEmpty) {
+          if (entry.actualPath.isNotEmpty && entry.name.isNotEmpty) {
             _items.add(entry);
           }
         } catch (_) {
@@ -132,20 +116,21 @@ class RecentFilesStore extends ChangeNotifier {
 
   Future<void> addFromViewerFile(ViewerFile file) async {
     final String cleanedDisplayPath =
-    _cleanDisplayPath(file.displayPath);
+    _cleanDisplayPath(file.displayPath, file.path);
 
     final String name = _fileNameFromPath(
-      cleanedDisplayPath.isNotEmpty ? cleanedDisplayPath : file.displayPath,
+      cleanedDisplayPath.isNotEmpty ? cleanedDisplayPath : file.path,
     );
 
+    // 같은 실제 경로는 한 개만 유지
     _items.removeWhere(
-          (RecentFileEntry e) => e.fileId == file.fileId,
+          (RecentFileEntry e) => e.actualPath == file.path,
     );
 
     _items.insert(
       0,
       RecentFileEntry(
-        fileId: file.fileId,
+        actualPath: file.path,
         displayPath: cleanedDisplayPath,
         name: name,
         extension: file.extension,
@@ -162,22 +147,31 @@ class RecentFilesStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> removeByFileId(String fileId) async {
-    _items.removeWhere((RecentFileEntry e) => e.fileId == fileId);
+  Future<void> removeByActualPath(String path) async {
+    _items.removeWhere((RecentFileEntry e) => e.actualPath == path);
     await _saveToStorage();
     notifyListeners();
   }
 
-  // 예전 코드 호환용
-  Future<void> removeByActualPath(String path) async {
-    await removeByFileId(path);
-  }
+  String _cleanDisplayPath(String displayPath, String actualPath) {
+    String candidate = displayPath;
 
-  String _cleanDisplayPath(String displayPath) {
-    if (displayPath.isEmpty) {
-      return '';
+    if (candidate.isEmpty) {
+      candidate = actualPath;
     }
-    return displayPath;
+
+    // 실제 경로랑 동일하면 파일 이름만 남김
+    if (candidate == actualPath) {
+      return _fileNameFromPath(actualPath);
+    }
+
+    // 내부 앱 데이터 경로면 파일 이름만 남김
+    if (candidate.startsWith('/data/user/0/') ||
+        candidate.startsWith('/data/data/')) {
+      return _fileNameFromPath(actualPath);
+    }
+
+    return candidate;
   }
 
   String _fileNameFromPath(String path) {

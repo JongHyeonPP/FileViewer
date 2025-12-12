@@ -1,14 +1,14 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
-import 'package:archive/archive.dart';
+// lib/pages/file_viewer_page.dart
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:xml/xml.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/file_service.dart';
-import '../services/supported_file_types.dart';
+
+import '../viewers/text_viewer.dart';
+import '../viewers/docx_viewer.dart';
+import '../viewers/pdf_viewer.dart';
+import '../viewers/image_viewer.dart';
+import '../viewers/xlsx_viewer.dart';
 
 class FileViewerPage extends StatefulWidget {
   final FileService fileService;
@@ -26,10 +26,6 @@ class FileViewerPage extends StatefulWidget {
 
 class FileViewerPageState extends State<FileViewerPage> {
   late ViewerFile currentFile;
-
-  bool _docxErrorShownForCurrentFile = false;
-  bool _pdfErrorShownForCurrentFile = false;
-  bool _imageErrorShownForCurrentFile = false;
 
   @override
   void initState() {
@@ -98,279 +94,50 @@ class FileViewerPageState extends State<FileViewerPage> {
 
     setState(() {
       currentFile = file;
-      _docxErrorShownForCurrentFile = false;
-      _pdfErrorShownForCurrentFile = false;
-      _imageErrorShownForCurrentFile = false;
     });
   }
 
-  Future<String> _loadDocxText(String fileId) async {
-    try {
-      final Uint8List bytes = await widget.fileService.readRawBytes(fileId);
-      final Archive archive = ZipDecoder().decodeBytes(bytes);
-
-      ArchiveFile? documentXmlFile;
-      for (final ArchiveFile file in archive) {
-        if (file.name == 'word/document.xml') {
-          documentXmlFile = file;
-          break;
-        }
-      }
-
-      if (documentXmlFile == null) {
-        throw const FormatException('document.xml not found');
-      }
-
-      final List<int> contentBytes = documentXmlFile.content as List<int>;
-      final String xmlString = utf8.decode(contentBytes);
-
-      final XmlDocument xmlDocument = XmlDocument.parse(xmlString);
-      final StringBuffer buffer = StringBuffer();
-
-      final Iterable<XmlElement> paragraphs =
-      xmlDocument.findAllElements('w:p');
-
-      for (final XmlElement paragraph in paragraphs) {
-        final Iterable<XmlElement> texts = paragraph.findAllElements('w:t');
-        for (final XmlElement textNode in texts) {
-          buffer.write(textNode.text);
-        }
-        buffer.write('\n\n');
-      }
-
-      final String result = buffer.toString().trimRight();
-      return result;
-    } catch (_) {
-      throw const FormatException('docx parse failed');
+  Widget _buildContentArea() {
+    if (currentFile.isDocx) {
+      return DocxViewer(
+        fileService: widget.fileService,
+        file: currentFile,
+      );
     }
-  }
+    if (currentFile.isPdf) {
+      return PdfViewerBody(
+        file: currentFile,
+      );
+    }
+    if (currentFile.isImage) {
+      return ImageViewerBody(
+        file: currentFile,
+      );
+    }
+    if (currentFile.isXlsx) {
+      return XlsxViewer(
+        file: currentFile,
+      );
+    }
+    if (currentFile.isTxt) {
+      return TextViewer(
+        file: currentFile,
+      );
+    }
 
-  Widget buildDocxContent() {
-    final key = ValueKey<String>('docx_${currentFile.fileId}');
-
-    return FutureBuilder<String>(
-      key: key,
-      future: _loadDocxText(currentFile.fileId),
-      builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
-        final AppLocalizations t = AppLocalizations.of(context)!;
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        if (snapshot.hasError) {
-          if (!_docxErrorShownForCurrentFile) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) {
-                return;
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(t.errorOfficeDisplay),
-                ),
-              );
-            });
-            _docxErrorShownForCurrentFile = true;
-          }
-
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                t.errorOfficeDisplay,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-
-        final String text = snapshot.data ?? '';
-        if (text.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                '문서에 표시할 텍스트가 없습니다',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
-              ),
-            ),
-          );
-        }
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: SelectableText(
-            text,
-            style: const TextStyle(
-              fontSize: 16,
-              height: 1.5,
-            ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          '현재 버전에서 이 파일 형식은 지원하지 않습니다',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.black54,
           ),
-        );
-      },
-    );
-  }
-
-  Widget buildTxtContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: SelectableText(
-        currentFile.textContent ?? '',
-        style: const TextStyle(
-          fontSize: 16,
-          height: 1.5,
+          textAlign: TextAlign.center,
         ),
       ),
     );
-  }
-
-  Widget buildPdfContent() {
-    final key = ValueKey<String>('pdf_${currentFile.fileId}');
-
-    return FutureBuilder<Uint8List>(
-      key: key,
-      future: widget.fileService.readRawBytes(currentFile.fileId),
-      builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
-        final AppLocalizations t = AppLocalizations.of(context)!;
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.hasError) {
-          if (!_pdfErrorShownForCurrentFile) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) {
-                return;
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(t.errorPdfDisplay),
-                ),
-              );
-            });
-            _pdfErrorShownForCurrentFile = true;
-          }
-
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                t.errorPdfDisplay,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-
-        final Uint8List bytes = snapshot.data!;
-
-        return SfPdfViewer.memory(
-          bytes,
-          canShowScrollStatus: true,
-          canShowScrollHead: true,
-          enableTextSelection: true,
-          canShowTextSelectionMenu: true,
-          onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-            if (!_pdfErrorShownForCurrentFile) {
-              _pdfErrorShownForCurrentFile = true;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${t.errorPdfDisplay}  ${details.error}',
-                  ),
-                ),
-              );
-            }
-          },
-        );
-      },
-    );
-  }
-
-  Widget buildImageContent() {
-    final key = ValueKey<String>('image_${currentFile.fileId}');
-
-    return FutureBuilder<Uint8List>(
-      key: key,
-      future: widget.fileService.readRawBytes(currentFile.fileId),
-      builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.hasError) {
-          if (!_imageErrorShownForCurrentFile) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) {
-                return;
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('이미지 표시 중 오류가 발생했습니다'),
-                ),
-              );
-            });
-            _imageErrorShownForCurrentFile = true;
-          }
-
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                '이미지 파일을 불러오는 중 오류가 발생했습니다',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          );
-        }
-
-        final Uint8List bytes = snapshot.data!;
-
-        return Center(
-          child: InteractiveViewer(
-            child: Image.memory(
-              bytes,
-              fit: BoxFit.contain,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget buildContentArea() {
-    if (currentFile.isDocx) {
-      return buildDocxContent();
-    }
-    if (currentFile.isPdf) {
-      return buildPdfContent();
-    }
-    if (currentFile.isImage) {
-      return buildImageContent();
-    }
-    return buildTxtContent();
   }
 
   Widget buildPageBody(BuildContext context) {
@@ -434,7 +201,7 @@ class FileViewerPageState extends State<FileViewerPage> {
                   ),
                   const SizedBox(height: 12),
                   Expanded(
-                    child: buildContentArea(),
+                    child: _buildContentArea(),
                   ),
                 ],
               ),

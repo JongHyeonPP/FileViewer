@@ -83,7 +83,7 @@ class FileHomePageState extends State<FileHomePage> {
     return file.isSupportedForInAppView;
   }
 
-  Future<void> _openFileViewerOrExternal(ViewerFile file) async {
+  Future<void> _openFileViewer(ViewerFile file) async {
     final AppLocalizations t = AppLocalizations.of(context)!;
 
     await _addRecent(file);
@@ -101,14 +101,16 @@ class FileHomePageState extends State<FileHomePage> {
           ),
         ),
       );
-      return;
+    } else {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t.unsupportedHere),
+        ),
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(t.unsupportedHere),
-      ),
-    );
   }
 
   Future<void> _openExplorer() async {
@@ -119,11 +121,10 @@ class FileHomePageState extends State<FileHomePage> {
       return;
     }
 
-    if (!mounted) {
-      return;
-    }
-
     if (result.hasError || result.file == null) {
+      if (!mounted) {
+        return;
+      }
       final AppLocalizations t = AppLocalizations.of(context)!;
       String message = t.errorWhileOpeningFile;
       if (result.errorType != null) {
@@ -141,21 +142,20 @@ class FileHomePageState extends State<FileHomePage> {
     }
 
     final ViewerFile file = result.file!;
-    await _openFileViewerOrExternal(file);
+    await _openFileViewer(file);
   }
 
   Future<void> _openRecent(RecentFileEntry entry) async {
     final ViewerPickResult result =
     await widget.fileService.loadFileForViewer(
-      entry.fileId,
+      entry.actualPath,
       displayPath: entry.displayPath,
     );
 
-    if (!mounted) {
-      return;
-    }
-
     if (result.hasError || result.file == null) {
+      if (!mounted) {
+        return;
+      }
       final AppLocalizations t = AppLocalizations.of(context)!;
       String message = t.errorWhileOpeningFile;
       if (result.errorType != null) {
@@ -164,18 +164,24 @@ class FileHomePageState extends State<FileHomePage> {
           context,
         );
       }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
         ),
       );
 
-      await recentStore.removeByFileId(entry.fileId);
+      // 여기서 삭제된 파일은 최근 목록에서도 제거
+      await recentStore.removeByActualPath(entry.actualPath);
       return;
     }
 
     final ViewerFile file = result.file!;
-    await _openFileViewerOrExternal(file);
+    await _openFileViewer(file);
+  }
+
+  Future<void> _removeRecentEntry(RecentFileEntry entry) async {
+    await recentStore.removeByActualPath(entry.actualPath);
   }
 
   Widget _buildRecentTile(RecentFileEntry entry) {
@@ -203,63 +209,47 @@ class FileHomePageState extends State<FileHomePage> {
           width: 1,
         ),
       ),
-      child: InkWell(
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          icon,
+          size: 22,
+          color: Colors.grey.shade800,
+        ),
+        title: Text(
+          entry.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         onTap: () => _openRecent(entry),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Row(
-            children: <Widget>[
-              Icon(
-                icon,
-                size: 22,
+        trailing: Padding(
+          padding: const EdgeInsets.only(right: 2),
+          child: InkWell(
+            onTap: () async {
+              await _removeRecentEntry(entry);
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.grey.shade600,
+                  width: 1.2,
+                ),
+              ),
+              child: Icon(
+                Icons.close,
+                size: 16,
                 color: Colors.grey.shade800,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  entry.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                width: 40,
-                height: 40,
-                child: Material(
-                  color: Colors.transparent,
-                  shape: const CircleBorder(
-                    side: BorderSide(
-                      color: Colors.black26,
-                      width: 1,
-                    ),
-                  ),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    iconSize: 20,
-                    tooltip: '삭제',
-                    onPressed: () async {
-                      await recentStore.removeByFileId(entry.fileId);
-                    },
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
-
 
   Widget _buildFilterDropdown() {
     final AppLocalizations t = AppLocalizations.of(context)!;
@@ -277,9 +267,7 @@ class FileHomePageState extends State<FileHomePage> {
     }
 
     final String currentLabel =
-    effectiveFilter == 'all'
-        ? t.filterAllFiles
-        : _extensionLabel(effectiveFilter);
+    effectiveFilter == 'all' ? t.filterAllFiles : _extensionLabel(effectiveFilter);
 
     final List<PopupMenuEntry<String>> menuItems = <PopupMenuEntry<String>>[
       PopupMenuItem<String>(

@@ -43,7 +43,11 @@ class SupportedFileTypes {
   }
 
   static bool isDocExtension(String ext) {
-    return isOfficeOpenXmlExtension(ext);
+    return ext == 'docx';
+  }
+
+  static bool isXlsxExtension(String ext) {
+    return ext == 'xlsx';
   }
 
   static bool isPdfExtension(String ext) {
