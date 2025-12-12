@@ -13,12 +13,15 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
+  file_selector: ^1.0.3
   charset_converter: ^2.0.0
   docx_viewer: ^1.0.1
   syncfusion_flutter_pdfviewer: ^31.2.2
+  open_filex: ^4.7.0
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
+  receive_sharing_intent: ^1.8.0
   shared_preferences: ^2.3.2
 
 dev_dependencies:
@@ -26,7 +29,16 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   generate: true
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icons/icon_fg.png"
+  adaptive_icon_foreground: "assets/icons/icon_fg.png"
+  adaptive_icon_background: "assets/icons/icon_bg.png"
+  min_sdk_android: 21

@@ -39,7 +39,6 @@ class MainActivity : FlutterActivity() {
                         result.success(initialFileInfo)
                         initialFileInfo = null
                     }
-
                     else -> result.notImplemented()
                 }
             }
@@ -69,6 +68,20 @@ class MainActivity : FlutterActivity() {
                         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                             addCategory(Intent.CATEGORY_OPENABLE)
                             type = "*/*"
+                            putExtra(
+                                Intent.EXTRA_MIME_TYPES,
+                                arrayOf(
+                                    "text/*",
+                                    "application/json",
+                                    "application/xml",
+                                    "text/csv",
+                                    "application/pdf",
+                                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                    "image/*"
+                                )
+                            )
                         }
 
                         pendingPickerResult = result
@@ -259,7 +272,7 @@ class MainActivity : FlutterActivity() {
             name = uri.lastPathSegment ?: "unknown"
         }
 
-        if (relative != null && relative!!.isNotEmpty()) {
+        if (!relative.isNullOrEmpty()) {
             val cleaned = if (relative!!.endsWith("/")) {
                 relative!!
             } else {
