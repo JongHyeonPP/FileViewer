@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 
 import 'l10n/app_localizations.dart';
 import 'services/file_service.dart';
@@ -29,7 +30,7 @@ class _AppRootState extends State<AppRoot> {
   final GlobalKey<NavigatorState> navigatorKey =
   GlobalKey<NavigatorState>();
 
-  String? initialFileId;
+  String? initialActualPath;
   String? initialDisplayPath;
 
   bool initialLoaded = false;
@@ -47,21 +48,21 @@ class _AppRootState extends State<AppRoot> {
       final dynamic result =
       await _initChannel.invokeMethod<dynamic>('getInitialFile');
 
-      String? fileId;
+      String? actualPath;
       String? displayPath;
 
       if (result is Map<dynamic, dynamic>) {
-        fileId = result['fileId'] as String?;
+        actualPath = result['actualPath'] as String?;
         displayPath = result['displayPath'] as String?;
       }
 
       setState(() {
-        initialFileId =
-        (fileId != null && fileId.isNotEmpty) ? fileId : null;
+        initialActualPath =
+        (actualPath != null && actualPath.isNotEmpty) ? actualPath : null;
         initialDisplayPath =
         (displayPath != null && displayPath.isNotEmpty)
             ? displayPath
-            : null;
+            : initialActualPath;
         initialLoaded = true;
       });
     } on PlatformException {
@@ -83,23 +84,23 @@ class _AppRootState extends State<AppRoot> {
         return;
       }
 
-      final String? fileId = args['fileId'] as String?;
+      final String? actualPath = args['actualPath'] as String?;
       final String? displayPath = args['displayPath'] as String?;
 
-      if (fileId == null || fileId.isEmpty) {
+      if (actualPath == null || actualPath.isEmpty) {
         return;
       }
 
-      await _openSharedFile(fileId, displayPath);
+      await _openSharedFile(actualPath, displayPath);
     }
   }
 
   Future<void> _openSharedFile(
-      String fileId,
+      String actualPath,
       String? displayPath,
       ) async {
     final ViewerPickResult result = await fileService.loadFileForViewer(
-      fileId,
+      actualPath,
       displayPath: displayPath,
     );
 
@@ -145,6 +146,7 @@ class _AppRootState extends State<AppRoot> {
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
+        SfGlobalLocalizations.delegate,
       ],
       supportedLocales: const <Locale>[
         Locale('ko'),
@@ -171,11 +173,11 @@ class _AppRootState extends State<AppRoot> {
 
     if (initialLoaded &&
         !initialFileHandled &&
-        initialFileId != null) {
+        initialActualPath != null) {
       WidgetsBinding.instance.addPostFrameCallback(
             (_) {
           _openSharedFile(
-            initialFileId!,
+            initialActualPath!,
             initialDisplayPath,
           );
         },

@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
-import 'package:docx_viewer/docx_viewer.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:xml/xml.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/file_service.dart';
 import '../services/supported_file_types.dart';
 
@@ -24,6 +27,10 @@ class FileViewerPage extends StatefulWidget {
 class FileViewerPageState extends State<FileViewerPage> {
   late ViewerFile currentFile;
 
+  bool _docxErrorShownForCurrentFile = false;
+  bool _pdfErrorShownForCurrentFile = false;
+  bool _imageErrorShownForCurrentFile = false;
+
   @override
   void initState() {
     super.initState();
@@ -42,11 +49,14 @@ class FileViewerPageState extends State<FileViewerPage> {
     if (!mounted) {
       return;
     }
-    Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+    Navigator.of(context).pop();
   }
 
   Future<void> handleGoHome() async {
-    await handleBackPressed();
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
   }
 
   Future<void> handlePickAnotherFile() async {
@@ -63,8 +73,9 @@ class FileViewerPageState extends State<FileViewerPage> {
     }
 
     if (result.hasError || result.file == null) {
+      final AppLocalizations t = AppLocalizations.of(context)!;
       final String message =
-          result.errorMessage ?? '파일을 여는 중 오류가 발생했습니다';
+          result.errorMessage ?? t.errorWhileOpeningFile;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -75,35 +86,134 @@ class FileViewerPageState extends State<FileViewerPage> {
 
     final ViewerFile file = result.file!;
 
-    if (file.isSupportedForInAppView) {
-      setState(() {
-        currentFile = file;
-      });
+    if (!file.isSupportedForInAppView) {
+      final AppLocalizations t = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t.unsupportedHere),
+        ),
+      );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('이 앱에서 지원하지 않는 파일 형식입니다'),
-      ),
-    );
+    setState(() {
+      currentFile = file;
+      _docxErrorShownForCurrentFile = false;
+      _pdfErrorShownForCurrentFile = false;
+      _imageErrorShownForCurrentFile = false;
+    });
+  }
+
+  Future<String> _loadDocxText(String fileId) async {
+    try {
+      final Uint8List bytes = await widget.fileService.readRawBytes(fileId);
+      final Archive archive = ZipDecoder().decodeBytes(bytes);
+
+      ArchiveFile? documentXmlFile;
+      for (final ArchiveFile file in archive) {
+        if (file.name == 'word/document.xml') {
+          documentXmlFile = file;
+          break;
+        }
+      }
+
+      if (documentXmlFile == null) {
+        throw const FormatException('document.xml not found');
+      }
+
+      final List<int> contentBytes = documentXmlFile.content as List<int>;
+      final String xmlString = utf8.decode(contentBytes);
+
+      final XmlDocument xmlDocument = XmlDocument.parse(xmlString);
+      final StringBuffer buffer = StringBuffer();
+
+      final Iterable<XmlElement> paragraphs =
+      xmlDocument.findAllElements('w:p');
+
+      for (final XmlElement paragraph in paragraphs) {
+        final Iterable<XmlElement> texts = paragraph.findAllElements('w:t');
+        for (final XmlElement textNode in texts) {
+          buffer.write(textNode.text);
+        }
+        buffer.write('\n\n');
+      }
+
+      final String result = buffer.toString().trimRight();
+      return result;
+    } catch (_) {
+      throw const FormatException('docx parse failed');
+    }
   }
 
   Widget buildDocxContent() {
-    final Uint8List? bytes = currentFile.binaryContent;
-    if (bytes == null) {
-      return const Center(
-        child: Text('DOCX 데이터를 불러오지 못했습니다'),
-      );
-    }
+    final key = ValueKey<String>('docx_${currentFile.fileId}');
 
-    return DocxView(
-      bytes: bytes,
-      fontSize: 16,
-      onError: (Object error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('DOCX 표시 중 오류가 발생했습니다'),
+    return FutureBuilder<String>(
+      key: key,
+      future: _loadDocxText(currentFile.fileId),
+      builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+        final AppLocalizations t = AppLocalizations.of(context)!;
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if (snapshot.hasError) {
+          if (!_docxErrorShownForCurrentFile) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) {
+                return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(t.errorOfficeDisplay),
+                ),
+              );
+            });
+            _docxErrorShownForCurrentFile = true;
+          }
+
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                t.errorOfficeDisplay,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        final String text = snapshot.data ?? '';
+        if (text.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                '문서에 표시할 텍스트가 없습니다',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: SelectableText(
+            text,
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.5,
+            ),
           ),
         );
       },
@@ -112,7 +222,8 @@ class FileViewerPageState extends State<FileViewerPage> {
 
   Widget buildTxtContent() {
     return SingleChildScrollView(
-      child: Text(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: SelectableText(
         currentFile.textContent ?? '',
         style: const TextStyle(
           fontSize: 16,
@@ -123,44 +234,129 @@ class FileViewerPageState extends State<FileViewerPage> {
   }
 
   Widget buildPdfContent() {
-    final Uint8List? bytes = currentFile.binaryContent;
-    if (bytes == null) {
-      return const Center(
-        child: Text('PDF 데이터를 불러오지 못했습니다'),
-      );
-    }
+    final key = ValueKey<String>('pdf_${currentFile.fileId}');
 
-    return SfPdfViewer.memory(
-      bytes,
-      canShowScrollStatus: true,
-      canShowScrollHead: true,
-      onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'PDF 표시 중 오류가 발생했습니다  ${details.error}',
+    return FutureBuilder<Uint8List>(
+      key: key,
+      future: widget.fileService.readRawBytes(currentFile.fileId),
+      builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
+        final AppLocalizations t = AppLocalizations.of(context)!;
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.hasError) {
+          if (!_pdfErrorShownForCurrentFile) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) {
+                return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(t.errorPdfDisplay),
+                ),
+              );
+            });
+            _pdfErrorShownForCurrentFile = true;
+          }
+
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                t.errorPdfDisplay,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
+          );
+        }
+
+        final Uint8List bytes = snapshot.data!;
+
+        return SfPdfViewer.memory(
+          bytes,
+          canShowScrollStatus: true,
+          canShowScrollHead: true,
+          enableTextSelection: true,
+          canShowTextSelectionMenu: true,
+          onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+            if (!_pdfErrorShownForCurrentFile) {
+              _pdfErrorShownForCurrentFile = true;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    '${t.errorPdfDisplay}  ${details.error}',
+                  ),
+                ),
+              );
+            }
+          },
         );
       },
     );
   }
 
   Widget buildImageContent() {
-    final Uint8List? bytes = currentFile.binaryContent;
-    if (bytes == null) {
-      return const Center(
-        child: Text('이미지 데이터를 불러오지 못했습니다'),
-      );
-    }
+    final key = ValueKey<String>('image_${currentFile.fileId}');
 
-    return Center(
-      child: InteractiveViewer(
-        child: Image.memory(
-          bytes,
-          fit: BoxFit.contain,
-        ),
-      ),
+    return FutureBuilder<Uint8List>(
+      key: key,
+      future: widget.fileService.readRawBytes(currentFile.fileId),
+      builder: (BuildContext context, AsyncSnapshot<Uint8List> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.hasError) {
+          if (!_imageErrorShownForCurrentFile) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) {
+                return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('이미지 표시 중 오류가 발생했습니다'),
+                ),
+              );
+            });
+            _imageErrorShownForCurrentFile = true;
+          }
+
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                '이미지 파일을 불러오는 중 오류가 발생했습니다',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        final Uint8List bytes = snapshot.data!;
+
+        return Center(
+          child: InteractiveViewer(
+            child: Image.memory(
+              bytes,
+              fit: BoxFit.contain,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -251,54 +447,50 @@ class FileViewerPageState extends State<FileViewerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations t = AppLocalizations.of(context)!;
     final double bottomInset = MediaQuery.of(context).padding.bottom;
 
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (bool didPop) async {
-        if (didPop) {
-          return;
-        }
-        await handleBackPressed();
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text('파일 뷰어'),
-          actions: <Widget>[
-            IconButton(
-              icon: const Icon(Icons.home),
-              onPressed: handleGoHome,
-              tooltip: '홈으로 돌아가기',
-            ),
-            IconButton(
-              icon: const Icon(Icons.folder_open),
-              onPressed: handlePickAnotherFile,
-              tooltip: '다른 파일 열기',
-            ),
-          ],
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(t.viewerTitle),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: handleBackPressed,
         ),
-        body: Column(
-          children: <Widget>[
-            Expanded(
-              child: SafeArea(
-                top: false,
-                bottom: false,
-                child: Container(
-                  color: const Color(0xFFF2F2F2),
-                  child: buildPageBody(context),
-                ),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.home),
+            onPressed: handleGoHome,
+            tooltip: t.goHomeTooltip,
+          ),
+          IconButton(
+            icon: const Icon(Icons.folder_open),
+            onPressed: handlePickAnotherFile,
+            tooltip: t.openAnotherFileTooltip,
+          ),
+        ],
+      ),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: Container(
+                color: const Color(0xFFF2F2F2),
+                child: buildPageBody(context),
               ),
             ),
-            Container(
-              height: 1,
-              color: Colors.black26,
-            ),
-            SizedBox(
-              height: bottomInset,
-            ),
-          ],
-        ),
+          ),
+          Container(
+            height: 1,
+            color: Colors.black26,
+          ),
+          SizedBox(
+            height: bottomInset,
+          ),
+        ],
       ),
     );
   }

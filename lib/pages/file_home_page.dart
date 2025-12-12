@@ -101,24 +101,14 @@ class FileHomePageState extends State<FileHomePage> {
           ),
         ),
       );
-    } else if (file.isExternalOnly) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            t.externalOnlyInfo,
-          ),
-        ),
-      );
-    } else {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(t.unsupportedHere),
-        ),
-      );
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(t.unsupportedHere),
+      ),
+    );
   }
 
   Future<void> _openExplorer() async {
@@ -129,10 +119,11 @@ class FileHomePageState extends State<FileHomePage> {
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
+
     if (result.hasError || result.file == null) {
-      if (!mounted) {
-        return;
-      }
       final AppLocalizations t = AppLocalizations.of(context)!;
       String message = t.errorWhileOpeningFile;
       if (result.errorType != null) {
@@ -156,14 +147,15 @@ class FileHomePageState extends State<FileHomePage> {
   Future<void> _openRecent(RecentFileEntry entry) async {
     final ViewerPickResult result =
     await widget.fileService.loadFileForViewer(
-      entry.fileId, // 실제 타입에 맞게 사용 중인 필드
+      entry.fileId,
       displayPath: entry.displayPath,
     );
 
+    if (!mounted) {
+      return;
+    }
+
     if (result.hasError || result.file == null) {
-      if (!mounted) {
-        return;
-      }
       final AppLocalizations t = AppLocalizations.of(context)!;
       String message = t.errorWhileOpeningFile;
       if (result.errorType != null) {
@@ -178,9 +170,7 @@ class FileHomePageState extends State<FileHomePage> {
         ),
       );
 
-      // 열기 실패한 항목은 자동으로 최근 목록에서 제거
       await recentStore.removeByFileId(entry.fileId);
-
       return;
     }
 
@@ -213,57 +203,57 @@ class FileHomePageState extends State<FileHomePage> {
           width: 1,
         ),
       ),
-      child: ListTile(
-        dense: true,
-        contentPadding: const EdgeInsets.only(
-          left: 12,
-          right: 12, // 오른쪽 여백을 늘려서 버튼을 약간 왼쪽으로
-        ),
-        leading: Icon(
-          icon,
-          size: 22,
-          color: Colors.grey.shade800,
-        ),
-        title: Text(
-          entry.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          entry.displayPath,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.black54,
-          ),
-        ),
+      child: InkWell(
         onTap: () => _openRecent(entry),
-        trailing: SizedBox(
-          width: 48, // 버튼 박스 폭도 조금 넓게
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: InkWell(
-              onTap: () async {
-                await recentStore.removeByFileId(entry.fileId);
-              },
-              borderRadius: BorderRadius.circular(22),
-              child: Container(
-                width: 36,  // 버튼 지름을 조금 키움
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.black54,
-                    width: 1,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                icon,
+                size: 22,
+                color: Colors.grey.shade800,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  entry.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                child: const Icon(
-                  Icons.delete_outline,
-                  size: 20, // 아이콘도 약간 키움
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: Material(
+                  color: Colors.transparent,
+                  shape: const CircleBorder(
+                    side: BorderSide(
+                      color: Colors.black26,
+                      width: 1,
+                    ),
+                  ),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 20,
+                    tooltip: '삭제',
+                    onPressed: () async {
+                      await recentStore.removeByFileId(entry.fileId);
+                    },
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.black87,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -287,7 +277,9 @@ class FileHomePageState extends State<FileHomePage> {
     }
 
     final String currentLabel =
-    effectiveFilter == 'all' ? t.filterAllFiles : _extensionLabel(effectiveFilter);
+    effectiveFilter == 'all'
+        ? t.filterAllFiles
+        : _extensionLabel(effectiveFilter);
 
     final List<PopupMenuEntry<String>> menuItems = <PopupMenuEntry<String>>[
       PopupMenuItem<String>(

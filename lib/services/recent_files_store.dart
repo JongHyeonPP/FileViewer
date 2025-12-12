@@ -21,6 +21,11 @@ class RecentFileEntry {
     required this.lastOpenedAt,
   });
 
+  // 예전 코드 호환용
+  String get actualPath {
+    return fileId;
+  }
+
   bool get isTxt {
     return SupportedFileTypes.isTextExtension(extension);
   }
@@ -48,15 +53,27 @@ class RecentFileEntry {
   }
 
   factory RecentFileEntry.fromJson(Map<String, dynamic> json) {
+    final String fileId =
+        json['fileId'] as String? ?? json['actualPath'] as String? ?? '';
+    final String displayPath =
+        json['displayPath'] as String? ?? fileId;
+    final String name =
+        json['name'] as String? ?? '';
+    final String extension =
+        json['extension'] as String? ?? '';
+    final String rawTime =
+        json['lastOpenedAt'] as String? ?? '';
+
+    final DateTime parsedTime =
+        DateTime.tryParse(rawTime) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+
     return RecentFileEntry(
-      fileId: json['fileId'] as String? ?? '',
-      displayPath: json['displayPath'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      extension: json['extension'] as String? ?? '',
-      lastOpenedAt: DateTime.tryParse(
-        json['lastOpenedAt'] as String? ?? '',
-      ) ??
-          DateTime.fromMillisecondsSinceEpoch(0),
+      fileId: fileId,
+      displayPath: displayPath,
+      name: name,
+      extension: extension,
+      lastOpenedAt: parsedTime,
     );
   }
 }
@@ -66,7 +83,7 @@ class RecentFilesStore extends ChangeNotifier {
 
   static final RecentFilesStore instance = RecentFilesStore._internal();
 
-  static const String _storageKey = 'recent_files_v2';
+  static const String _storageKey = 'recent_files_v1';
 
   final List<RecentFileEntry> _items = <RecentFileEntry>[];
   bool _loaded = false;
@@ -114,21 +131,21 @@ class RecentFilesStore extends ChangeNotifier {
   }
 
   Future<void> addFromViewerFile(ViewerFile file) async {
-    final String cleanedDisplayPath = _cleanDisplayPath(file.displayPath);
+    final String cleanedDisplayPath =
+    _cleanDisplayPath(file.displayPath);
 
-    final String name =
-    _fileNameFromPath(
+    final String name = _fileNameFromPath(
       cleanedDisplayPath.isNotEmpty ? cleanedDisplayPath : file.displayPath,
     );
 
     _items.removeWhere(
-          (RecentFileEntry e) => e.fileId == file.id,
+          (RecentFileEntry e) => e.fileId == file.fileId,
     );
 
     _items.insert(
       0,
       RecentFileEntry(
-        fileId: file.id,
+        fileId: file.fileId,
         displayPath: cleanedDisplayPath,
         name: name,
         extension: file.extension,
@@ -151,20 +168,15 @@ class RecentFilesStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 예전 코드 호환용
+  Future<void> removeByActualPath(String path) async {
+    await removeByFileId(path);
+  }
+
   String _cleanDisplayPath(String displayPath) {
     if (displayPath.isEmpty) {
       return '';
     }
-
-    if (displayPath.startsWith('content://')) {
-      return _fileNameFromPath(displayPath);
-    }
-
-    if (displayPath.startsWith('/data/user/0/') ||
-        displayPath.startsWith('/data/data/')) {
-      return _fileNameFromPath(displayPath);
-    }
-
     return displayPath;
   }
 

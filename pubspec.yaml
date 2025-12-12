@@ -17,12 +17,16 @@ dependencies:
   charset_converter: ^2.0.0
   docx_viewer: ^1.0.1
   syncfusion_flutter_pdfviewer: ^31.2.2
+  syncfusion_localizations: ^31.2.18
   open_filex: ^4.7.0
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
   receive_sharing_intent: ^1.8.0
   shared_preferences: ^2.3.2
+
+  archive: any
+  xml: any
 
 dev_dependencies:
   flutter_test:
