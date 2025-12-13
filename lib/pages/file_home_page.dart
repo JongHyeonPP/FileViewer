@@ -269,57 +269,70 @@ class FileHomePageState extends State<FileHomePage> {
     final String currentLabel =
     effectiveFilter == 'all' ? t.filterAllFiles : _extensionLabel(effectiveFilter);
 
-    final List<PopupMenuEntry<String>> menuItems = <PopupMenuEntry<String>>[
-      PopupMenuItem<String>(
-        value: 'all',
-        child: Text(t.filterAllFiles),
-      ),
-    ];
-
-    for (final String ext in sortedExt) {
-      menuItems.add(
-        PopupMenuItem<String>(
-          value: ext,
-          child: Text(_extensionLabel(ext)),
-        ),
-      );
-    }
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      child: PopupMenuButton<String>(
-        onSelected: (String value) {
-          setState(() {
-            selectedFilter = value;
-          });
-        },
-        itemBuilder: (BuildContext context) => menuItems,
-        offset: const Offset(0, 40),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.grey.shade300,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final double menuWidth = constraints.maxWidth;
+
+          final List<PopupMenuEntry<String>> menuItems = <PopupMenuEntry<String>>[
+            PopupMenuItem<String>(
+              value: 'all',
+              child: SizedBox(
+                width: menuWidth,
+                child: Text(t.filterAllFiles),
+              ),
             ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  currentLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+            for (final String ext in sortedExt)
+              PopupMenuItem<String>(
+                value: ext,
+                child: SizedBox(
+                  width: menuWidth,
+                  child: Text(_extensionLabel(ext)),
                 ),
               ),
-              const Icon(Icons.arrow_drop_down),
-            ],
-          ),
-        ),
+          ];
+
+          return PopupMenuButton<String>(
+            onSelected: (String value) {
+              setState(() {
+                selectedFilter = value;
+              });
+            },
+            itemBuilder: (BuildContext context) => menuItems,
+            offset: const Offset(0, 40),
+            constraints: BoxConstraints(
+              minWidth: menuWidth,
+              maxWidth: menuWidth,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      currentLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
+
 
   Widget _buildFilteredList() {
     final AppLocalizations t = AppLocalizations.of(context)!;
