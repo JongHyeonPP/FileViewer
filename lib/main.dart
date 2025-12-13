@@ -27,8 +27,7 @@ class _AppRootState extends State<AppRoot> {
   MethodChannel('app.channel/file_intent_events');
 
   final FileService fileService = FileService();
-  final GlobalKey<NavigatorState> navigatorKey =
-  GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   String? initialActualPath;
   String? initialDisplayPath;
@@ -52,15 +51,14 @@ class _AppRootState extends State<AppRoot> {
       String? displayPath;
 
       if (result is Map<dynamic, dynamic>) {
-        actualPath = result['actualPath'] as String?;
+        actualPath = result['fileId'] as String?;
         displayPath = result['displayPath'] as String?;
       }
 
       setState(() {
         initialActualPath =
         (actualPath != null && actualPath.isNotEmpty) ? actualPath : null;
-        initialDisplayPath =
-        (displayPath != null && displayPath.isNotEmpty)
+        initialDisplayPath = (displayPath != null && displayPath.isNotEmpty)
             ? displayPath
             : initialActualPath;
         initialLoaded = true;
@@ -84,7 +82,7 @@ class _AppRootState extends State<AppRoot> {
         return;
       }
 
-      final String? actualPath = args['actualPath'] as String?;
+      final String? actualPath = args['fileId'] as String?;
       final String? displayPath = args['displayPath'] as String?;
 
       if (actualPath == null || actualPath.isEmpty) {
@@ -109,8 +107,7 @@ class _AppRootState extends State<AppRoot> {
     }
 
     if (result.hasError || result.file == null) {
-      final String message =
-          result.errorMessage ?? '파일을 여는 중 오류가 발생했습니다';
+      final String message = result.errorMessage ?? '파일을 여는 중 오류가 발생했습니다';
       final BuildContext? context = navigatorKey.currentContext;
       if (context != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -171,9 +168,7 @@ class _AppRootState extends State<AppRoot> {
           : const SizedBox.shrink(),
     );
 
-    if (initialLoaded &&
-        !initialFileHandled &&
-        initialActualPath != null) {
+    if (initialLoaded && !initialFileHandled && initialActualPath != null) {
       WidgetsBinding.instance.addPostFrameCallback(
             (_) {
           _openSharedFile(

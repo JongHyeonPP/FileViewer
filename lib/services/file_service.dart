@@ -1,10 +1,10 @@
-// lib/services/file_service.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:charset_converter/charset_converter.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 
 import 'supported_file_types.dart';
@@ -21,9 +21,9 @@ enum FileServiceErrorType {
 }
 
 class ViewerFile {
-  final String fileId;        // 최근 목록에서 사용할 파일 식별자
-  final String path;          // 실제 파일 경로
-  final String displayPath;   // 사용자에게 보여 줄 경로 텍스트
+  final String fileId;
+  final String path;
+  final String displayPath;
   final String extension;
   final String? textContent;
 
@@ -89,7 +89,9 @@ class _DecodedText {
 }
 
 class FileService {
-  // 지원하는 모든 확장자 목록
+  static const MethodChannel _contentChannel =
+  MethodChannel('app.channel/file_content');
+
   List<String> _allSupportedExtensions() {
     final Set<String> set = <String>{
       ...SupportedFileTypes.textExtensions,
@@ -102,22 +104,19 @@ class FileService {
     return list;
   }
 
-  // 안드로이드용 MIME 타입 필터
   List<String> _allSupportedMimeTypes() {
     return <String>[
-      'text/plain', // txt
-      'application/pdf', // pdf
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
-      'image/*', // 이미지 전반
+      'text/plain',
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/*',
     ];
   }
 
-  // 탐색기에서 파일 선택
   Future<ViewerPickResult?> pickFileForViewer() async {
     final List<String> exts = _allSupportedExtensions();
 
-    // 확장자와 MIME 타입을 동시에 지정
     final XTypeGroup group = XTypeGroup(
       label: 'supported',
       extensions: exts,
@@ -137,7 +136,6 @@ class FileService {
     final String path = file.path;
     final String extension = _extractExtension(path);
 
-    // 탐색기가 필터를 완벽히 지키지 않는 경우를 위한 2차 방어
     if (!SupportedFileTypes.isSupportedExtension(extension)) {
       return ViewerPickResult.error(
         '지원하지 않는 파일 형식입니다',
@@ -181,12 +179,13 @@ class FileService {
     );
   }
 
-  // 최근 목록이나 공유 인텐트에서 다시 여는 경우
   Future<ViewerPickResult> loadFileForViewer(
-      String path, {
+      String fileId, {
         String? displayPath,
       }) async {
-    final String extension = _extractExtension(path);
+    final String candidateForExt =
+    (displayPath != null && displayPath.isNotEmpty) ? displayPath : fileId;
+    final String extension = _extractExtension(candidateForExt);
 
     if (!SupportedFileTypes.isSupportedExtension(extension)) {
       return ViewerPickResult.error(
@@ -195,18 +194,37 @@ class FileService {
       );
     }
 
-    final String effectiveDisplayPath = displayPath ?? path;
-    final String fileId = path;
+    final String effectiveDisplayPath =
+    (displayPath != null && displayPath.isNotEmpty)
+        ? displayPath
+        : candidateForExt;
+
+    String actualPath = fileId;
+
+    final bool isContentUri = fileId.startsWith('content://');
+    final bool isFileUri = fileId.startsWith('file://');
+
+    if (isContentUri || isFileUri) {
+      final Uint8List? bytes = await _readBytesFromNative(fileId);
+      if (bytes == null) {
+        return ViewerPickResult.error(
+          '파일을 여는 중 오류가 발생했습니다',
+          FileServiceErrorType.textReloadFailed,
+        );
+      }
+
+      actualPath = await _writeBytesToTempFile(bytes, extension);
+    }
 
     if (SupportedFileTypes.isTextExtension(extension)) {
       try {
-        final Uint8List bytes = await File(path).readAsBytes();
+        final Uint8List bytes = await File(actualPath).readAsBytes();
         final _DecodedText decoded = await _decodeTxtBytes(bytes);
 
         return ViewerPickResult.success(
           ViewerFile(
             fileId: fileId,
-            path: path,
+            path: actualPath,
             displayPath: effectiveDisplayPath,
             extension: extension,
             textContent: decoded.text,
@@ -227,7 +245,7 @@ class FileService {
       return ViewerPickResult.success(
         ViewerFile(
           fileId: fileId,
-          path: path,
+          path: actualPath,
           displayPath: effectiveDisplayPath,
           extension: extension,
           textContent: null,
@@ -260,6 +278,41 @@ class FileService {
         throw const FormatException('unknown encoding');
       }
     }
+  }
+
+  Future<Uint8List?> _readBytesFromNative(String fileId) async {
+    try {
+      final dynamic result = await _contentChannel.invokeMethod<dynamic>(
+        'readBytes',
+        <String, dynamic>{
+          'fileId': fileId,
+        },
+      );
+      if (result is Uint8List) {
+        return result;
+      }
+      if (result is List<int>) {
+        return Uint8List.fromList(result);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String> _writeBytesToTempFile(Uint8List bytes, String extension) async {
+    final Directory dir = Directory.systemTemp;
+
+    String suffix = '';
+    if (extension.isNotEmpty) {
+      suffix = '.$extension';
+    }
+
+    final String name = 'shared_${DateTime.now().millisecondsSinceEpoch}$suffix';
+    final File out = File('${dir.path}/$name');
+
+    await out.writeAsBytes(bytes, flush: true);
+    return out.path;
   }
 
   String _extractExtension(String path) {

@@ -1,4 +1,3 @@
-// lib/services/recent_files_store.dart
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -95,7 +94,6 @@ class RecentFilesStore extends ChangeNotifier {
             _items.add(entry);
           }
         } catch (_) {
-          // 무시
         }
       }
     }
@@ -106,11 +104,8 @@ class RecentFilesStore extends ChangeNotifier {
 
   Future<void> _saveToStorage() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final List<String> rawList = _items
-        .map(
-          (RecentFileEntry e) => jsonEncode(e.toJson()),
-    )
-        .toList();
+    final List<String> rawList =
+    _items.map((RecentFileEntry e) => jsonEncode(e.toJson())).toList();
     await prefs.setStringList(_storageKey, rawList);
   }
 
@@ -122,15 +117,14 @@ class RecentFilesStore extends ChangeNotifier {
       cleanedDisplayPath.isNotEmpty ? cleanedDisplayPath : file.path,
     );
 
-    // 같은 실제 경로는 한 개만 유지
     _items.removeWhere(
-          (RecentFileEntry e) => e.actualPath == file.path,
+          (RecentFileEntry e) => e.actualPath == file.fileId,
     );
 
     _items.insert(
       0,
       RecentFileEntry(
-        actualPath: file.path,
+        actualPath: file.fileId,
         displayPath: cleanedDisplayPath,
         name: name,
         extension: file.extension,
@@ -160,12 +154,10 @@ class RecentFilesStore extends ChangeNotifier {
       candidate = actualPath;
     }
 
-    // 실제 경로랑 동일하면 파일 이름만 남김
     if (candidate == actualPath) {
       return _fileNameFromPath(actualPath);
     }
 
-    // 내부 앱 데이터 경로면 파일 이름만 남김
     if (candidate.startsWith('/data/user/0/') ||
         candidate.startsWith('/data/data/')) {
       return _fileNameFromPath(actualPath);
