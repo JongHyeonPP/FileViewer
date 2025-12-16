@@ -1,4 +1,3 @@
-// lib/pages/file_viewer_page.dart
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -9,6 +8,7 @@ import '../viewers/docx_viewer.dart';
 import '../viewers/pdf_viewer.dart';
 import '../viewers/image_viewer.dart';
 import '../viewers/xlsx_viewer.dart';
+import '../pptx/pptx_viewer.dart';
 
 class FileViewerPage extends StatefulWidget {
   final FileService fileService;
@@ -70,8 +70,7 @@ class FileViewerPageState extends State<FileViewerPage> {
 
     if (result.hasError || result.file == null) {
       final AppLocalizations t = AppLocalizations.of(context)!;
-      final String message =
-          result.errorMessage ?? t.errorWhileOpeningFile;
+      final String message = result.errorMessage ?? t.errorWhileOpeningFile;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -116,6 +115,11 @@ class FileViewerPageState extends State<FileViewerPage> {
     }
     if (currentFile.isXlsx) {
       return XlsxViewer(
+        file: currentFile,
+      );
+    }
+    if (currentFile.isPptx) {
+      return PptxViewer(
         file: currentFile,
       );
     }

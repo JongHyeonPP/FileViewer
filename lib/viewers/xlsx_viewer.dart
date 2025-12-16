@@ -74,64 +74,126 @@ class XlsxViewer extends StatefulWidget {
 }
 
 class _XlsxViewerState extends State<XlsxViewer> {
-  late Future<List<XlsxSheetData>> _future;
-  int _selectedSheetIndex = 0;
+  late Future<List<XlsxSheetData>> future;
+  int selectedSheetIndex = 0;
 
-  final ScrollController _horizontalController = ScrollController();
-  final ScrollController _verticalController = ScrollController();
+  final ScrollController horizontalController = ScrollController();
+  final ScrollController verticalController = ScrollController();
 
-  bool _showHorizontalBar = false;
-  Timer? _horizontalBarTimer;
+  bool showHorizontalBar = false;
+  Timer? horizontalBarTimer;
 
-  Color get _scrollThumbColor {
+  double zoom = 1.0;
+  static const double minZoom = 0.7;
+  static const double maxZoom = 2.5;
+
+  bool showZoomOverlay = false;
+  Timer? zoomOverlayTimer;
+
+  Color get scrollThumbColor {
     return Colors.grey.shade600;
+  }
+
+  double scaled(double v) {
+    return v * zoom;
+  }
+
+  void setZoom(double value) {
+    final double clamped = value.clamp(minZoom, maxZoom) as double;
+    if (clamped == zoom) {
+      return;
+    }
+    setState(() {
+      zoom = clamped;
+    });
+  }
+
+  void showZoomHud() {
+    if (!showZoomOverlay) {
+      setState(() {
+        showZoomOverlay = true;
+      });
+    }
+
+    zoomOverlayTimer?.cancel();
+    zoomOverlayTimer = Timer(const Duration(milliseconds: 900), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        showZoomOverlay = false;
+      });
+    });
+  }
+
+  void zoomIn() {
+    setZoom(zoom + 0.15);
+    showZoomHud();
+  }
+
+  void zoomOut() {
+    setZoom(zoom - 0.15);
+    showZoomHud();
   }
 
   @override
   void initState() {
     super.initState();
-    _future = _loadAllSheetsFromXlsx(widget.file.path);
+    future = loadAllSheetsFromXlsx(widget.file.path);
   }
 
   @override
   void didUpdateWidget(covariant XlsxViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.file.path != widget.file.path) {
-      _selectedSheetIndex = 0;
-      _future = _loadAllSheetsFromXlsx(widget.file.path);
+      selectedSheetIndex = 0;
+      zoom = 1.0;
+      showZoomOverlay = false;
+      zoomOverlayTimer?.cancel();
+      future = loadAllSheetsFromXlsx(widget.file.path);
     }
   }
 
   @override
   void dispose() {
-    _horizontalBarTimer?.cancel();
-    _horizontalController.dispose();
-    _verticalController.dispose();
+    horizontalBarTimer?.cancel();
+    zoomOverlayTimer?.cancel();
+    horizontalController.dispose();
+    verticalController.dispose();
     super.dispose();
   }
 
-  void _onUserHorizontalScroll() {
-    if (!_showHorizontalBar) {
+  void onUserHorizontalScroll() {
+    if (!showHorizontalBar) {
       setState(() {
-        _showHorizontalBar = true;
+        showHorizontalBar = true;
       });
     }
 
-    _horizontalBarTimer?.cancel();
-    _horizontalBarTimer = Timer(const Duration(milliseconds: 800), () {
+    horizontalBarTimer?.cancel();
+    horizontalBarTimer = Timer(const Duration(milliseconds: 800), () {
       if (!mounted) {
         return;
       }
       setState(() {
-        _showHorizontalBar = false;
+        showHorizontalBar = false;
       });
     });
+  }
+
+  void resetScrollToOrigin() {
+    if (horizontalController.hasClients) {
+      horizontalController.jumpTo(0);
+    }
+    if (verticalController.hasClients) {
+      verticalController.jumpTo(0);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<XlsxSheetData>>(
-      future: _future,
+      future: future,
       builder: (BuildContext context, AsyncSnapshot<List<XlsxSheetData>> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -168,17 +230,17 @@ class _XlsxViewerState extends State<XlsxViewer> {
           );
         }
 
-        if (_selectedSheetIndex < 0 || _selectedSheetIndex >= sheets.length) {
-          _selectedSheetIndex = 0;
+        if (selectedSheetIndex < 0 || selectedSheetIndex >= sheets.length) {
+          selectedSheetIndex = 0;
         }
 
-        final XlsxSheetData currentSheet = sheets[_selectedSheetIndex];
-        return _buildSheetView(context, sheets, currentSheet);
+        final XlsxSheetData currentSheet = sheets[selectedSheetIndex];
+        return buildSheetView(context, sheets, currentSheet);
       },
     );
   }
 
-  Widget _buildSheetView(
+  Widget buildSheetView(
       BuildContext context,
       List<XlsxSheetData> sheets,
       XlsxSheetData data,
@@ -205,7 +267,7 @@ class _XlsxViewerState extends State<XlsxViewer> {
               ),
             ),
           ),
-          _buildSheetTabs(sheets),
+          buildSheetTabs(sheets),
         ],
       );
     }
@@ -214,14 +276,14 @@ class _XlsxViewerState extends State<XlsxViewer> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Expanded(
-          child: _buildGrid(rows, columnCount),
+          child: buildGrid(rows, columnCount),
         ),
-        _buildSheetTabs(sheets),
+        buildSheetTabs(sheets),
       ],
     );
   }
 
-  Widget _buildSheetTabs(List<XlsxSheetData> sheets) {
+  Widget buildSheetTabs(List<XlsxSheetData> sheets) {
     return Container(
       height: 40,
       decoration: BoxDecoration(
@@ -238,7 +300,7 @@ class _XlsxViewerState extends State<XlsxViewer> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         itemCount: sheets.length,
         itemBuilder: (BuildContext context, int index) {
-          final bool selected = index == _selectedSheetIndex;
+          final bool selected = index == selectedSheetIndex;
           final XlsxSheetData sheet = sheets[index];
 
           return Padding(
@@ -247,8 +309,9 @@ class _XlsxViewerState extends State<XlsxViewer> {
               onTap: () {
                 if (!selected) {
                   setState(() {
-                    _selectedSheetIndex = index;
+                    selectedSheetIndex = index;
                   });
+                  resetScrollToOrigin();
                 }
               },
               child: Container(
@@ -300,15 +363,15 @@ class _XlsxViewerState extends State<XlsxViewer> {
     );
   }
 
-  Widget _buildGrid(List<List<XlsxCell>> rows, int columnCount) {
-    const double cellWidth = 90;
+  Widget buildGrid(List<List<XlsxCell>> rows, int columnCount) {
+    final double cellWidth = 90 * zoom;
     final List<TableRow> tableRows = <TableRow>[];
 
     final List<Widget> headerCells = <Widget>[];
-    headerCells.add(_buildCornerHeaderCell());
+    headerCells.add(buildCornerHeaderCell());
     for (int c = 0; c < columnCount; c += 1) {
       headerCells.add(
-        _buildHeaderCell(_columnLabel(c)),
+        buildHeaderCell(columnLabel(c)),
       );
     }
     tableRows.add(
@@ -318,17 +381,24 @@ class _XlsxViewerState extends State<XlsxViewer> {
     );
 
     for (int r = 0; r < rows.length; r += 1) {
+      final bool isFirstDataRow = r == 0;
       final List<XlsxCell> row = rows[r];
       final List<Widget> rowCells = <Widget>[];
 
       rowCells.add(
-        _buildRowHeaderCell((r + 1).toString()),
+        buildRowHeaderCell(
+          (r + 1).toString(),
+          isFirstDataRow: isFirstDataRow,
+        ),
       );
 
       for (int c = 0; c < columnCount; c += 1) {
         final XlsxCell cell = c < row.length ? row[c] : XlsxCell.empty;
         rowCells.add(
-          _buildDataCell(cell),
+          buildDataCell(
+            cell,
+            isFirstDataRow: isFirstDataRow,
+          ),
         );
       }
 
@@ -339,64 +409,167 @@ class _XlsxViewerState extends State<XlsxViewer> {
       );
     }
 
-    return Stack(
-      children: <Widget>[
-        RawScrollbar(
-          controller: _verticalController,
-          thumbColor: _scrollThumbColor,
-          radius: const Radius.circular(3),
-          thickness: 4,
-          notificationPredicate: (ScrollNotification notification) {
-            return notification.metrics.axis == Axis.vertical;
+    final Widget gridBody = RawScrollbar(
+      controller: verticalController,
+      thumbColor: scrollThumbColor,
+      radius: const Radius.circular(3),
+      thickness: 4,
+      notificationPredicate: (ScrollNotification notification) {
+        return notification.metrics.axis == Axis.vertical;
+      },
+      child: SingleChildScrollView(
+        controller: verticalController,
+        scrollDirection: Axis.vertical,
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification notification) {
+            if (notification.metrics.axis == Axis.horizontal && notification is ScrollUpdateNotification) {
+              onUserHorizontalScroll();
+            }
+            return false;
           },
           child: SingleChildScrollView(
-            controller: _verticalController,
-            scrollDirection: Axis.vertical,
-            child: NotificationListener<ScrollNotification>(
-              onNotification: (ScrollNotification notification) {
-                if (notification.metrics.axis == Axis.horizontal && notification is ScrollUpdateNotification) {
-                  _onUserHorizontalScroll();
-                }
-                return false;
-              },
-              child: SingleChildScrollView(
-                controller: _horizontalController,
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: cellWidth * (columnCount + 1),
-                  child: Table(
-                    defaultColumnWidth: const FixedColumnWidth(cellWidth),
-                    border: TableBorder.all(
-                      color: Colors.grey.shade300,
-                      width: 0.5,
-                    ),
-                    children: tableRows,
-                  ),
+            controller: horizontalController,
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: cellWidth * (columnCount + 1),
+              child: Table(
+                defaultColumnWidth: FixedColumnWidth(cellWidth),
+                border: TableBorder.all(
+                  color: Colors.grey.shade300,
+                  width: 0.5,
                 ),
+                children: tableRows,
               ),
             ),
           ),
         ),
-        if (_showHorizontalBar)
+      ),
+    );
+
+    return Stack(
+      children: <Widget>[
+        gridBody,
+        if (showHorizontalBar)
           Positioned(
             left: 8,
             right: 8,
             bottom: 2,
-            child: _buildHorizontalIndicator(),
+            child: buildHorizontalIndicator(),
           ),
+        Positioned(
+          top: 10,
+          right: 10,
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: showZoomOverlay ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 260),
+              child: buildZoomOverlayChip(),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 6,
+          bottom: 6,
+          child: buildZoomButtons(),
+        ),
       ],
     );
   }
 
-  Widget _buildHorizontalIndicator() {
+  Widget buildZoomOverlayChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '${(zoom * 100).round()}%',
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget buildZoomButtons() {
+    const double buttonWidth = 32;
+    const double buttonHeight = 30;
+    const double iconSize = 16;
+
+    Widget buildOneButton({
+      required IconData icon,
+      required VoidCallback onTap,
+    }) {
+      return InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: buttonWidth,
+          height: buttonHeight,
+          child: Center(
+            child: Icon(
+              icon,
+              size: iconSize,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.70),
+            border: Border.all(
+              color: Colors.black.withOpacity(0.32),
+              width: 1.3,
+            ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withOpacity(0.10),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              buildOneButton(
+                icon: Icons.remove,
+                onTap: zoomOut,
+              ),
+              Container(
+                width: 1,
+                height: 18,
+                color: Colors.black.withOpacity(0.22),
+              ),
+              buildOneButton(
+                icon: Icons.add,
+                onTap: zoomIn,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildHorizontalIndicator() {
     return AnimatedBuilder(
-      animation: _horizontalController,
+      animation: horizontalController,
       builder: (BuildContext context, Widget? child) {
-        if (!_horizontalController.hasClients) {
+        if (!horizontalController.hasClients) {
           return const SizedBox.shrink();
         }
 
-        final ScrollPosition position = _horizontalController.position;
+        final ScrollPosition position = horizontalController.position;
         if (position.maxScrollExtent <= 0) {
           return const SizedBox.shrink();
         }
@@ -437,7 +610,7 @@ class _XlsxViewerState extends State<XlsxViewer> {
                     child: Container(
                       width: thumbWidth,
                       decoration: BoxDecoration(
-                        color: _scrollThumbColor,
+                        color: scrollThumbColor,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -451,9 +624,7 @@ class _XlsxViewerState extends State<XlsxViewer> {
     );
   }
 
-  // 코드2 방식 적용
-  // 헤더 셀 배경이 셀 전체를 채우도록 TableCell fill 과 ColoredBox 사용
-  Widget _buildCornerHeaderCell() {
+  Widget buildCornerHeaderCell() {
     return const TableCell(
       verticalAlignment: TableCellVerticalAlignment.fill,
       child: ColoredBox(
@@ -463,56 +634,62 @@ class _XlsxViewerState extends State<XlsxViewer> {
     );
   }
 
-  Widget _buildHeaderCell(String text) {
+  Widget buildHeaderCell(String text) {
     return TableCell(
       verticalAlignment: TableCellVerticalAlignment.fill,
-      child: ColoredBox(
+      child: Container(
         color: const Color(0xFFF3F3F3),
-        child: Align(
-          alignment: Alignment.center,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
+        alignment: Alignment.center,
+        padding: EdgeInsets.symmetric(
+          vertical: scaled(4),
+          horizontal: scaled(2),
+        ),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: scaled(11),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildRowHeaderCell(String text) {
+  Widget buildRowHeaderCell(
+      String text, {
+        required bool isFirstDataRow,
+      }) {
+    final Color bg = isFirstDataRow ? const Color(0xFFF3F3F3) : const Color(0xFFF7F7F7);
+
     return TableCell(
       verticalAlignment: TableCellVerticalAlignment.fill,
-      child: ColoredBox(
-        color: const Color(0xFFF7F7F7),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 10,
-                color: Colors.black87,
-              ),
-            ),
+      child: Container(
+        color: bg,
+        alignment: Alignment.centerRight,
+        padding: EdgeInsets.symmetric(
+          vertical: scaled(4),
+          horizontal: scaled(2),
+        ),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: scaled(10),
+            color: Colors.black87,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildDataCell(XlsxCell cell) {
+  Widget buildDataCell(
+      XlsxCell cell, {
+        required bool isFirstDataRow,
+      }) {
     Alignment alignment;
     TextAlign textAlign;
 
@@ -533,14 +710,20 @@ class _XlsxViewerState extends State<XlsxViewer> {
         break;
     }
 
+    final Color? bg = isFirstDataRow ? const Color(0xFFF3F3F3) : null;
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      color: bg,
+      padding: EdgeInsets.symmetric(
+        vertical: scaled(4),
+        horizontal: scaled(4),
+      ),
       alignment: alignment,
       child: SelectableText(
         cell.text,
         textAlign: textAlign,
-        style: const TextStyle(
-          fontSize: 11,
+        style: TextStyle(
+          fontSize: scaled(11),
           color: Colors.black87,
           height: 1.25,
         ),
@@ -548,7 +731,7 @@ class _XlsxViewerState extends State<XlsxViewer> {
     );
   }
 
-  String _columnLabel(int index) {
+  String columnLabel(int index) {
     int n = index;
     final StringBuffer buffer = StringBuffer();
     while (n >= 0) {
@@ -561,31 +744,35 @@ class _XlsxViewerState extends State<XlsxViewer> {
   }
 }
 
-// 전체 시트를 로드하고 정렬 정보까지 적용
-Future<List<XlsxSheetData>> _loadAllSheetsFromXlsx(String path) async {
+class _XlsxSheetRef {
+  final String sheetName;
+  final String? sheetPath;
+
+  const _XlsxSheetRef({
+    required this.sheetName,
+    required this.sheetPath,
+  });
+}
+
+Future<List<XlsxSheetData>> loadAllSheetsFromXlsx(String path) async {
   final File file = File(path);
   final List<int> bytes = await file.readAsBytes();
   final Archive archive = ZipDecoder().decodeBytes(bytes);
 
-  ArchiveFile? sharedStringsFile;
-  ArchiveFile? workbookFile;
-  ArchiveFile? relsFile;
-  ArchiveFile? stylesFile;
+  final Map<String, ArchiveFile> fileMap = <String, ArchiveFile>{};
+  for (final ArchiveFile f in archive.files) {
+    fileMap[f.name] = f;
+  }
+
+  ArchiveFile? sharedStringsFile = fileMap['xl/sharedStrings.xml'];
+  ArchiveFile? workbookFile = fileMap['xl/workbook.xml'];
+  ArchiveFile? relsFile = fileMap['xl/_rels/workbook.xml.rels'];
+  ArchiveFile? stylesFile = fileMap['xl/styles.xml'];
 
   final Map<String, ArchiveFile> worksheetFiles = <String, ArchiveFile>{};
-
   for (final ArchiveFile f in archive.files) {
-    final String name = f.name;
-    if (name == 'xl/sharedStrings.xml') {
-      sharedStringsFile = f;
-    } else if (name == 'xl/workbook.xml') {
-      workbookFile = f;
-    } else if (name == 'xl/_rels/workbook.xml.rels') {
-      relsFile = f;
-    } else if (name == 'xl/styles.xml') {
-      stylesFile = f;
-    } else if (name.startsWith('xl/worksheets/')) {
-      worksheetFiles[name] = f;
+    if (f.name.startsWith('xl/worksheets/')) {
+      worksheetFiles[f.name] = f;
     }
   }
 
@@ -593,20 +780,20 @@ Future<List<XlsxSheetData>> _loadAllSheetsFromXlsx(String path) async {
   if (sharedStringsFile != null) {
     final String xmlString = utf8.decode(sharedStringsFile.content as List<int>);
     final xml.XmlDocument doc = xml.XmlDocument.parse(xmlString);
-    final Iterable<xml.XmlElement> siList = doc.findAllElements('si');
-
-    for (final xml.XmlElement si in siList) {
+    for (final xml.XmlElement si in doc.findAllElements('si')) {
       final StringBuffer buffer = StringBuffer();
-      for (final xml.XmlElement t in si.findAllElements('t')) {
-        buffer.write(t.text);
+      for (final xml.XmlElement t in si.descendants.whereType<xml.XmlElement>()) {
+        if (t.name.local == 't') {
+          buffer.write(t.text);
+        }
       }
       sharedStrings.add(buffer.toString());
     }
   }
 
-  final List<XlsxCellStyle> cellStyles = _parseCellStyles(stylesFile);
+  final List<XlsxCellStyle> cellStyles = parseCellStyles(stylesFile);
 
-  final List<XlsxSheetData> result = <XlsxSheetData>[];
+  final List<_XlsxSheetRef> sheetRefs = <_XlsxSheetRef>[];
 
   if (workbookFile != null && relsFile != null) {
     final String workbookXml = utf8.decode(workbookFile.content as List<int>);
@@ -615,10 +802,8 @@ Future<List<XlsxSheetData>> _loadAllSheetsFromXlsx(String path) async {
     final String relsXml = utf8.decode(relsFile.content as List<int>);
     final xml.XmlDocument relsDoc = xml.XmlDocument.parse(relsXml);
 
-    final Iterable<xml.XmlElement> rels = relsDoc.findAllElements('Relationship');
     final Map<String, String> relMap = <String, String>{};
-
-    for (final xml.XmlElement rel in rels) {
+    for (final xml.XmlElement rel in relsDoc.findAllElements('Relationship')) {
       final String? id = rel.getAttribute('Id');
       final String? target = rel.getAttribute('Target');
       if (id != null && target != null) {
@@ -626,44 +811,71 @@ Future<List<XlsxSheetData>> _loadAllSheetsFromXlsx(String path) async {
       }
     }
 
-    final Iterable<xml.XmlElement> sheetElements = workbookDoc.findAllElements('sheet');
-    for (final xml.XmlElement sheetElem in sheetElements) {
+    for (final xml.XmlElement sheetElem in workbookDoc.findAllElements('sheet')) {
       final String sheetName = sheetElem.getAttribute('name') ?? 'Sheet';
-      final String? rId = sheetElem.getAttribute('r:id');
+      final String? rId = _attrWithPrefix(sheetElem, 'id', 'r');
 
       String? sheetPath;
       if (rId != null) {
         final String? target = relMap[rId];
-        if (target != null && target.isNotEmpty) {
-          sheetPath = 'xl/$target';
+        if (target != null && target.trim().isNotEmpty) {
+          sheetPath = _normalizeXlTarget(target.trim());
         }
       }
 
-      sheetPath ??= 'xl/worksheets/sheet1.xml';
-
-      ArchiveFile? sheetFile = archive.files.where((ArchiveFile f) => f.name == sheetPath).firstOrNull;
-      sheetFile ??= worksheetFiles.values.firstOrNull;
-
-      if (sheetFile == null) {
-        continue;
-      }
-
-      final List<List<XlsxCell>> rows = _parseSheetRows(sheetFile, sharedStrings, cellStyles);
-      result.add(
-        XlsxSheetData(
+      sheetRefs.add(
+        _XlsxSheetRef(
           sheetName: sheetName,
-          rows: rows,
+          sheetPath: sheetPath,
         ),
       );
     }
   }
 
-  if (result.isEmpty && worksheetFiles.isNotEmpty) {
-    final ArchiveFile sheetFile = worksheetFiles.values.first;
-    final List<List<XlsxCell>> rows = _parseSheetRows(sheetFile, sharedStrings, cellStyles);
+  if (sheetRefs.isEmpty && worksheetFiles.isNotEmpty) {
+    final List<String> keys = worksheetFiles.keys.toList()..sort();
+    for (int i = 0; i < keys.length; i += 1) {
+      sheetRefs.add(
+        _XlsxSheetRef(
+          sheetName: 'Sheet${i + 1}',
+          sheetPath: keys[i],
+        ),
+      );
+    }
+  }
+
+  final List<XlsxSheetData> result = <XlsxSheetData>[];
+  final List<String> sortedWorksheetKeys = worksheetFiles.keys.toList()..sort();
+
+  for (int i = 0; i < sheetRefs.length; i += 1) {
+    final _XlsxSheetRef ref = sheetRefs[i];
+
+    ArchiveFile? sheetFile;
+    if (ref.sheetPath != null) {
+      sheetFile = fileMap[ref.sheetPath!];
+    }
+
+    if (sheetFile == null && sortedWorksheetKeys.isNotEmpty) {
+      if (i >= 0 && i < sortedWorksheetKeys.length) {
+        sheetFile = worksheetFiles[sortedWorksheetKeys[i]];
+      } else {
+        sheetFile = worksheetFiles[sortedWorksheetKeys.first];
+      }
+    }
+
+    if (sheetFile == null) {
+      continue;
+    }
+
+    final List<List<XlsxCell>> rows = parseSheetRows(
+      sheetFile,
+      sharedStrings,
+      cellStyles,
+    );
+
     result.add(
       XlsxSheetData(
-        sheetName: 'Sheet1',
+        sheetName: ref.sheetName,
         rows: rows,
       ),
     );
@@ -681,8 +893,7 @@ Future<List<XlsxSheetData>> _loadAllSheetsFromXlsx(String path) async {
   return result;
 }
 
-// styles xml 에서 셀 정렬 정보 파싱
-List<XlsxCellStyle> _parseCellStyles(ArchiveFile? stylesFile) {
+List<XlsxCellStyle> parseCellStyles(ArchiveFile? stylesFile) {
   if (stylesFile == null) {
     return <XlsxCellStyle>[];
   }
@@ -706,7 +917,14 @@ List<XlsxCellStyle> _parseCellStyles(ArchiveFile? stylesFile) {
       final bool applyAlignment = applyAlignmentAttr == null || applyAlignmentAttr == '1';
 
       if (applyAlignment) {
-        final xml.XmlElement? alignmentElem = xf.getElement('alignment');
+        xml.XmlElement? alignmentElem;
+        for (final xml.XmlNode n in xf.children) {
+          if (n is xml.XmlElement && n.name.local == 'alignment') {
+            alignmentElem = n;
+            break;
+          }
+        }
+
         if (alignmentElem != null) {
           final String? horizontal = alignmentElem.getAttribute('horizontal');
           if (horizontal != null) {
@@ -743,8 +961,7 @@ List<XlsxCellStyle> _parseCellStyles(ArchiveFile? stylesFile) {
   }
 }
 
-// 시트 한 개 파싱
-List<List<XlsxCell>> _parseSheetRows(
+List<List<XlsxCell>> parseSheetRows(
     ArchiveFile sheetFile,
     List<String> sharedStrings,
     List<XlsxCellStyle> cellStyles,
@@ -771,25 +988,36 @@ List<List<XlsxCell>> _parseSheetRows(
         continue;
       }
 
-      final int colIndex = _columnIndexFromRef(ref);
+      final int colIndex = columnIndexFromRef(ref);
       if (colIndex < 0) {
         continue;
       }
 
+      final String? type = c.getAttribute('t');
+
       String value = '';
-      final xml.XmlElement? vElem = c.getElement('v');
-      if (vElem != null) {
-        final String raw = vElem.text;
-        final String? type = c.getAttribute('t');
-        if (type == 's') {
+
+      final xml.XmlElement? vElem = _firstChildElementByLocalName(c, 'v');
+      if (type == 's') {
+        if (vElem != null) {
+          final String raw = vElem.text;
           final int idx = int.tryParse(raw) ?? -1;
           if (idx >= 0 && idx < sharedStrings.length) {
             value = sharedStrings[idx];
           } else {
             value = raw;
           }
+        }
+      } else if (type == 'inlineStr') {
+        value = _extractInlineStringFromCell(c);
+      } else {
+        if (vElem != null) {
+          value = vElem.text;
         } else {
-          value = raw;
+          final xml.XmlElement? isElem = _firstChildElementByLocalName(c, 'is');
+          if (isElem != null) {
+            value = _extractInlineStringFromCell(c);
+          }
         }
       }
 
@@ -831,8 +1059,54 @@ List<List<XlsxCell>> _parseSheetRows(
   return rows;
 }
 
-// 열 인덱스 계산
-int _columnIndexFromRef(String ref) {
+String _extractInlineStringFromCell(xml.XmlElement cell) {
+  final xml.XmlElement? isElem = _firstChildElementByLocalName(cell, 'is');
+  if (isElem == null) {
+    return '';
+  }
+
+  final StringBuffer buffer = StringBuffer();
+  for (final xml.XmlElement t in isElem.descendants.whereType<xml.XmlElement>()) {
+    if (t.name.local == 't') {
+      buffer.write(t.text);
+    }
+  }
+  return buffer.toString();
+}
+
+xml.XmlElement? _firstChildElementByLocalName(xml.XmlElement parent, String local) {
+  for (final xml.XmlNode n in parent.children) {
+    if (n is xml.XmlElement && n.name.local == local) {
+      return n;
+    }
+  }
+  return null;
+}
+
+String? _attrWithPrefix(xml.XmlElement element, String local, String prefix) {
+  for (final xml.XmlAttribute a in element.attributes) {
+    if (a.name.local == local && a.name.prefix == prefix) {
+      return a.value;
+    }
+  }
+  return null;
+}
+
+String _normalizeXlTarget(String target) {
+  String t = target.trim();
+
+  while (t.startsWith('/')) {
+    t = t.substring(1);
+  }
+
+  if (t.startsWith('xl/')) {
+    return t;
+  }
+
+  return 'xl/$t';
+}
+
+int columnIndexFromRef(String ref) {
   final RegExp exp = RegExp(r'^[A-Z]+');
   final RegExpMatch? match = exp.firstMatch(ref);
   if (match == null) {
@@ -848,8 +1122,7 @@ int _columnIndexFromRef(String ref) {
   return index - 1;
 }
 
-// firstOrNull 유틸
-extension _FirstOrNullExtension<E> on Iterable<E> {
+extension FirstOrNullExtension<E> on Iterable<E> {
   E? get firstOrNull {
     final Iterator<E> it = iterator;
     if (!it.moveNext()) {

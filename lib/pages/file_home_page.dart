@@ -72,6 +72,8 @@ class FileHomePageState extends State<FileHomePage> {
         return t.errorTextReload;
       case FileServiceErrorType.unsupportedFormat:
         return t.errorUnsupportedFormat;
+      case FileServiceErrorType.fileReadFailed:
+        return t.errorWhileOpeningFile;
     }
   }
 
@@ -171,7 +173,6 @@ class FileHomePageState extends State<FileHomePage> {
         ),
       );
 
-      // 여기서 삭제된 파일은 최근 목록에서도 제거
       await recentStore.removeByActualPath(entry.actualPath);
       return;
     }
@@ -187,7 +188,9 @@ class FileHomePageState extends State<FileHomePage> {
   Widget _buildRecentTile(RecentFileEntry entry) {
     IconData icon;
 
-    if (entry.isPdf) {
+    if (entry.extension == 'pptx') {
+      icon = Icons.slideshow_outlined;
+    } else if (entry.isPdf) {
       icon = Icons.picture_as_pdf_outlined;
     } else if (entry.isDocOpenXml) {
       icon = Icons.description_outlined;
@@ -332,7 +335,6 @@ class FileHomePageState extends State<FileHomePage> {
       ),
     );
   }
-
 
   Widget _buildFilteredList() {
     final AppLocalizations t = AppLocalizations.of(context)!;

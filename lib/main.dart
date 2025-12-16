@@ -58,9 +58,8 @@ class _AppRootState extends State<AppRoot> {
       setState(() {
         initialActualPath =
         (actualPath != null && actualPath.isNotEmpty) ? actualPath : null;
-        initialDisplayPath = (displayPath != null && displayPath.isNotEmpty)
-            ? displayPath
-            : initialActualPath;
+        initialDisplayPath =
+        (displayPath != null && displayPath.isNotEmpty) ? displayPath : initialActualPath;
         initialLoaded = true;
       });
     } on PlatformException {
@@ -107,7 +106,8 @@ class _AppRootState extends State<AppRoot> {
     }
 
     if (result.hasError || result.file == null) {
-      final String message = result.errorMessage ?? '파일을 여는 중 오류가 발생했습니다';
+      final String message =
+          result.errorMessage ?? '파일을 여는 중 오류가 발생했습니다';
       final BuildContext? context = navigatorKey.currentContext;
       if (context != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -120,7 +120,6 @@ class _AppRootState extends State<AppRoot> {
     }
 
     final ViewerFile file = result.file!;
-
     RecentFilesStore.instance.addFromViewerFile(file);
 
     navigatorKey.currentState?.push(

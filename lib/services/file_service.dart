@@ -18,6 +18,7 @@ enum FileServiceErrorType {
   textEncodingUnknown,
   textReloadFailed,
   unsupportedFormat,
+  fileReadFailed,
 }
 
 class ViewerFile {
@@ -55,8 +56,12 @@ class ViewerFile {
     return extension == 'xlsx';
   }
 
+  bool get isPptx {
+    return extension == 'pptx';
+  }
+
   bool get isSupportedForInAppView {
-    return isTxt || isDocx || isPdf || isImage || isXlsx;
+    return isTxt || isDocx || isPdf || isImage || isXlsx || isPptx;
   }
 
   bool get isExternalOnly {
@@ -110,6 +115,7 @@ class FileService {
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       'image/*',
     ];
   }
@@ -183,9 +189,13 @@ class FileService {
       String fileId, {
         String? displayPath,
       }) async {
-    final String candidateForExt =
+    final String effectiveDisplayPath =
     (displayPath != null && displayPath.isNotEmpty) ? displayPath : fileId;
-    final String extension = _extractExtension(candidateForExt);
+
+    String extension = _extractExtension(effectiveDisplayPath);
+    if (extension.isEmpty) {
+      extension = _extractExtension(fileId);
+    }
 
     if (!SupportedFileTypes.isSupportedExtension(extension)) {
       return ViewerPickResult.error(
@@ -194,37 +204,35 @@ class FileService {
       );
     }
 
-    final String effectiveDisplayPath =
-    (displayPath != null && displayPath.isNotEmpty)
-        ? displayPath
-        : candidateForExt;
+    final bool isUri = _looksLikeUri(fileId);
 
-    String actualPath = fileId;
+    String localPath = fileId;
+    Uint8List? bytes;
 
-    final bool isContentUri = fileId.startsWith('content://');
-    final bool isFileUri = fileId.startsWith('file://');
-
-    if (isContentUri || isFileUri) {
-      final Uint8List? bytes = await _readBytesFromNative(fileId);
+    if (isUri) {
+      bytes = await _readBytesFromFileId(fileId);
       if (bytes == null) {
         return ViewerPickResult.error(
-          '파일을 여는 중 오류가 발생했습니다',
-          FileServiceErrorType.textReloadFailed,
+          '파일을 읽는 중 오류가 발생했습니다',
+          FileServiceErrorType.fileReadFailed,
         );
       }
 
-      actualPath = await _writeBytesToTempFile(bytes, extension);
+      localPath = await _writeTempFile(
+        bytes: bytes,
+        extension: extension,
+      );
     }
 
     if (SupportedFileTypes.isTextExtension(extension)) {
       try {
-        final Uint8List bytes = await File(actualPath).readAsBytes();
-        final _DecodedText decoded = await _decodeTxtBytes(bytes);
+        final Uint8List textBytes = bytes ?? await File(localPath).readAsBytes();
+        final _DecodedText decoded = await _decodeTxtBytes(textBytes);
 
         return ViewerPickResult.success(
           ViewerFile(
             fileId: fileId,
-            path: actualPath,
+            path: localPath,
             displayPath: effectiveDisplayPath,
             extension: extension,
             textContent: decoded.text,
@@ -241,11 +249,12 @@ class FileService {
     if (SupportedFileTypes.isDocExtension(extension) ||
         SupportedFileTypes.isPdfExtension(extension) ||
         SupportedFileTypes.isImageExtension(extension) ||
-        extension == 'xlsx') {
+        extension == 'xlsx' ||
+        extension == 'pptx') {
       return ViewerPickResult.success(
         ViewerFile(
           fileId: fileId,
-          path: actualPath,
+          path: localPath,
           displayPath: effectiveDisplayPath,
           extension: extension,
           textContent: null,
@@ -280,7 +289,11 @@ class FileService {
     }
   }
 
-  Future<Uint8List?> _readBytesFromNative(String fileId) async {
+  bool _looksLikeUri(String v) {
+    return v.startsWith('content://') || v.startsWith('file://');
+  }
+
+  Future<Uint8List?> _readBytesFromFileId(String fileId) async {
     try {
       final dynamic result = await _contentChannel.invokeMethod<dynamic>(
         'readBytes',
@@ -288,6 +301,7 @@ class FileService {
           'fileId': fileId,
         },
       );
+
       if (result is Uint8List) {
         return result;
       }
@@ -300,17 +314,23 @@ class FileService {
     }
   }
 
-  Future<String> _writeBytesToTempFile(Uint8List bytes, String extension) async {
-    final Directory dir = Directory.systemTemp;
+  Future<String> _writeTempFile({
+    required Uint8List bytes,
+    required String extension,
+  }) async {
+    final Directory cacheDir = Directory(
+      '${Directory.systemTemp.path}/file_viewer_cache',
+    );
 
-    String suffix = '';
-    if (extension.isNotEmpty) {
-      suffix = '.$extension';
+    if (!await cacheDir.exists()) {
+      await cacheDir.create(recursive: true);
     }
 
-    final String name = 'shared_${DateTime.now().millisecondsSinceEpoch}$suffix';
-    final File out = File('${dir.path}/$name');
+    final String ts = DateTime.now().microsecondsSinceEpoch.toString();
+    final String fileName = extension.isEmpty ? 'viewer_$ts' : 'viewer_$ts.$extension';
+    final String path = '${cacheDir.path}/$fileName';
 
+    final File out = File(path);
     await out.writeAsBytes(bytes, flush: true);
     return out.path;
   }
