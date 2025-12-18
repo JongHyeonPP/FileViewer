@@ -1,13 +1,12 @@
-// lib/viewers/pptx_viewer.dart
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/file_service.dart';
-import '../pptx/pptx_models.dart';
-import '../pptx/pptx_parser.dart';
-import '../pptx/pptx_renderer.dart';
+import 'pptx_models.dart';
+import 'pptx_parser.dart';
+import 'pptx_renderer.dart';
 
 class PptxViewer extends StatefulWidget {
   final ViewerFile file;
@@ -218,6 +217,34 @@ class _PptxViewerState extends State<PptxViewer> {
           currentIndex = 0;
         }
 
+        final bool isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+
+        if (isLandscape) {
+          return Row(
+            children: <Widget>[
+              Expanded(
+                child: PageView.builder(
+                  controller: pageController,
+                  itemCount: data.slides.length,
+                  onPageChanged: (int index) {
+                    setState(() {
+                      currentIndex = index;
+                    });
+                  },
+                  itemBuilder: (BuildContext context, int index) {
+                    return _buildSlidePage(
+                      data: data,
+                      slide: data.slides[index],
+                      isLandscape: true,
+                    );
+                  },
+                ),
+              ),
+              _buildRightBar(data),
+            ],
+          );
+        }
+
         return Column(
           children: <Widget>[
             Expanded(
@@ -233,6 +260,7 @@ class _PptxViewerState extends State<PptxViewer> {
                   return _buildSlidePage(
                     data: data,
                     slide: data.slides[index],
+                    isLandscape: false,
                   );
                 },
               ),
@@ -247,16 +275,18 @@ class _PptxViewerState extends State<PptxViewer> {
   Widget _buildSlidePage({
     required PptxPresentationData data,
     required PptxSlideData slide,
+    required bool isLandscape,
   }) {
-    const double frameRadius = 10;
-    const double frameMargin = 14;
-    const double frameBorderWidth = 1.2;
+    final double frameRadius = 10;
+    final double frameMargin = isLandscape ? 8 : 14;
+    final double frameBorderWidth = 1.2;
+    final double innerPadding = isLandscape ? 6 : 12;
 
-    const double innerPadding = 12;
+    final double slideAspect = data.slideWidthEmu.toDouble() / data.slideHeightEmu.toDouble();
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(frameMargin),
+        padding: EdgeInsets.all(frameMargin),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -273,12 +303,15 @@ class _PptxViewerState extends State<PptxViewer> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(frameRadius),
             child: Padding(
-              padding: const EdgeInsets.all(innerPadding),
-              child: IgnorePointer(
-                child: PptxSlideWidget(
-                  presentation: data,
-                  slide: slide,
-                  isThumbnail: false,
+              padding: EdgeInsets.all(innerPadding),
+              child: AspectRatio(
+                aspectRatio: slideAspect,
+                child: IgnorePointer(
+                  child: PptxSlideWidget(
+                    presentation: data,
+                    slide: slide,
+                    isThumbnail: false,
+                  ),
                 ),
               ),
             ),
@@ -287,7 +320,6 @@ class _PptxViewerState extends State<PptxViewer> {
       ),
     );
   }
-
 
   Widget _buildBottomBar(PptxPresentationData data) {
     const double barHeight = 86;
@@ -336,7 +368,7 @@ class _PptxViewerState extends State<PptxViewer> {
                     onTap: () async {
                       await jumpToSlide(index);
                     },
-                    child: _buildThumbCard(
+                    child: _buildThumbCardHorizontal(
                       data: data,
                       slide: slide,
                       title: title,
@@ -352,7 +384,74 @@ class _PptxViewerState extends State<PptxViewer> {
     );
   }
 
-  Widget _buildThumbCard({
+  Widget _buildRightBar(PptxPresentationData data) {
+    final double width = 210;
+
+    return SizedBox(
+      width: width,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F0FF),
+          border: Border(
+            left: BorderSide(color: Colors.grey.shade300, width: 0.8),
+          ),
+        ),
+        child: Column(
+          children: <Widget>[
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: () async {
+                await openPageJumpSheet(totalSlides: data.slides.length);
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Text(
+                  '${currentIndex + 1} / ${data.slides.length}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade900,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                itemCount: data.slides.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final bool selected = index == currentIndex;
+                  final PptxSlideData slide = data.slides[index];
+                  final String title = (slide.title != null && slide.title!.trim().isNotEmpty)
+                      ? slide.title!.trim()
+                      : 'Slide ${index + 1}';
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GestureDetector(
+                      onTap: () async {
+                        await jumpToSlide(index);
+                      },
+                      child: _buildThumbCardVertical(
+                        data: data,
+                        slide: slide,
+                        title: title,
+                        selected: selected,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbCardHorizontal({
     required PptxPresentationData data,
     required PptxSlideData slide,
     required String title,
@@ -387,6 +486,61 @@ class _PptxViewerState extends State<PptxViewer> {
               ),
               Container(
                 height: 18,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    color: Colors.grey.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbCardVertical({
+    required PptxPresentationData data,
+    required PptxSlideData slide,
+    required String title,
+    required bool selected,
+  }) {
+    final Color borderColor = selected ? const Color(0xFF7C4DFF) : Colors.grey.shade400;
+    final double borderWidth = selected ? 1.6 : 1.2;
+
+    return SizedBox(
+      height: 140,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: borderColor, width: borderWidth),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Column(
+            children: <Widget>[
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 6, 6, 4),
+                  child: IgnorePointer(
+                    child: PptxSlideWidget(
+                      presentation: data,
+                      slide: slide,
+                      isThumbnail: true,
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                height: 22,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 alignment: Alignment.centerLeft,
                 child: Text(

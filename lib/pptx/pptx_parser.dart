@@ -1,4 +1,3 @@
-// lib/pptx/pptx_parser.dart
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -32,10 +31,8 @@ class PptxParser {
       throw const FormatException('presentation not found');
     }
 
-    final xml.XmlDocument presentationDoc =
-    xml.XmlDocument.parse(_asUtf8String(presentationFile));
-    final xml.XmlDocument relsDoc =
-    xml.XmlDocument.parse(_asUtf8String(relsFile));
+    final xml.XmlDocument presentationDoc = xml.XmlDocument.parse(_asUtf8String(presentationFile));
+    final xml.XmlDocument relsDoc = xml.XmlDocument.parse(_asUtf8String(relsFile));
 
     int slideW = 9144000;
     int slideH = 6858000;
@@ -55,8 +52,7 @@ class PptxParser {
     final Map<String, String> presRelMap = _parseRelationships(relsDoc);
 
     final List<String> slideTargets = <String>[];
-    for (final xml.XmlElement sldId
-    in _allByLocalName(presentationDoc, 'sldId')) {
+    for (final xml.XmlElement sldId in _allByLocalName(presentationDoc, 'sldId')) {
       final String? rId = _attrLocal(sldId, 'id', prefix: 'r');
       if (rId == null || rId.isEmpty) {
         continue;
@@ -82,8 +78,7 @@ class PptxParser {
       final String slideRelsPath = 'ppt/slides/_rels/$slideFileName.rels';
       final ArchiveFile? slideRelsFile = fileMap[slideRelsPath];
 
-      final xml.XmlDocument slideDoc =
-      xml.XmlDocument.parse(_asUtf8String(slideFile));
+      final xml.XmlDocument slideDoc = xml.XmlDocument.parse(_asUtf8String(slideFile));
 
       final Map<String, String> slideRelMap = slideRelsFile != null
           ? _parseRelationships(
@@ -253,8 +248,7 @@ class PptxParser {
     required _PptxTransform parent,
   }) {
     final xml.XmlElement? grpSpPr = _firstChildByLocalName(grpSp, 'grpSpPr');
-    final xml.XmlElement? xfrm =
-    grpSpPr != null ? _firstByLocalName(grpSpPr, 'xfrm') : null;
+    final xml.XmlElement? xfrm = grpSpPr != null ? _firstByLocalName(grpSpPr, 'xfrm') : null;
 
     if (xfrm == null) {
       return parent;
@@ -512,8 +506,7 @@ class PptxParser {
     }
 
     Color? backgroundColor;
-    final xml.XmlElement? bgSolid =
-    bodyPr != null ? _firstByLocalName(bodyPr, 'solidFill') : null;
+    final xml.XmlElement? bgSolid = bodyPr != null ? _firstByLocalName(bodyPr, 'solidFill') : null;
     if (bgSolid != null) {
       final xml.XmlElement? srgb = _firstByLocalName(bgSolid, 'srgbClr');
       if (srgb != null) {
@@ -672,7 +665,7 @@ class PptxParser {
 
     final bool isBold = bStr == '1' || bStr == 'true';
     final bool isItalic = iStr == '1' || iStr == 'true';
-    final bool isUnderline = (uStr != null && uStr.isNotEmpty && uStr != 'none');
+    final bool isUnderline = uStr != null && uStr.isNotEmpty && uStr != 'none';
 
     String? fontFamily;
     final xml.XmlElement? latin = _firstByLocalName(rPr, 'latin');
@@ -814,8 +807,7 @@ class PptxParser {
 
   Map<String, String> _parseRelationships(xml.XmlDocument relsDoc) {
     final Map<String, String> map = <String, String>{};
-    for (final xml.XmlElement rel
-    in _allByLocalName(relsDoc, 'Relationship')) {
+    for (final xml.XmlElement rel in _allByLocalName(relsDoc, 'Relationship')) {
       final String? id = _attrLocal(rel, 'Id');
       final String? target = _attrLocal(rel, 'Target');
       if (id != null && target != null) {
@@ -861,8 +853,7 @@ class PptxParser {
   }
 
   xml.XmlElement? _firstByLocalName(xml.XmlNode node, String local) {
-    for (final xml.XmlElement e
-    in node.descendants.whereType<xml.XmlElement>()) {
+    for (final xml.XmlElement e in node.descendants.whereType<xml.XmlElement>()) {
       if (e.name.local == local) {
         return e;
       }
@@ -871,8 +862,7 @@ class PptxParser {
   }
 
   Iterable<xml.XmlElement> _allByLocalName(xml.XmlNode node, String local) sync* {
-    for (final xml.XmlElement e
-    in node.descendants.whereType<xml.XmlElement>()) {
+    for (final xml.XmlElement e in node.descendants.whereType<xml.XmlElement>()) {
       if (e.name.local == local) {
         yield e;
       }

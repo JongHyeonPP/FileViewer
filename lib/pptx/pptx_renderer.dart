@@ -175,8 +175,7 @@ class PptxSlideWidget extends StatelessWidget {
     final double padR = textBox.paddingEmu.r * scale;
     final double padB = textBox.paddingEmu.b * scale;
 
-    final Alignment boxAlign =
-    textBox.verticalAnchor == PptxVerticalAnchor.center
+    final Alignment boxAlign = textBox.verticalAnchor == PptxVerticalAnchor.center
         ? Alignment.centerLeft
         : textBox.verticalAnchor == PptxVerticalAnchor.bottom
         ? Alignment.bottomLeft
