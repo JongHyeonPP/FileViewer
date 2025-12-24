@@ -19,9 +19,7 @@ class SupportedFileTypes {
     'pptx',
   ];
 
-  static const List<String> pdfExtensions = <String>[
-    'pdf',
-  ];
+  static const List<String> pdfExtensions = <String>['pdf'];
 
   static const List<String> imageExtensions = <String>[
     'png',

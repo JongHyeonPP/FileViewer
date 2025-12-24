@@ -11,10 +11,7 @@ import 'pptx_renderer.dart';
 class PptxViewer extends StatefulWidget {
   final ViewerFile file;
 
-  const PptxViewer({
-    super.key,
-    required this.file,
-  });
+  const PptxViewer({super.key, required this.file});
 
   @override
   State<PptxViewer> createState() => _PptxViewerState();
@@ -62,9 +59,7 @@ class _PptxViewerState extends State<PptxViewer> {
     );
   }
 
-  Future<void> openPageJumpSheet({
-    required int totalSlides,
-  }) async {
+  Future<void> openPageJumpSheet({required int totalSlides}) async {
     final TextEditingController controller = TextEditingController(
       text: '${currentIndex + 1}',
     );
@@ -121,7 +116,10 @@ class _PptxViewerState extends State<PptxViewer> {
                     ],
                     decoration: InputDecoration(
                       hintText: '페이지 번호',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(color: Colors.grey.shade400),
@@ -132,7 +130,10 @@ class _PptxViewerState extends State<PptxViewer> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFF7C4DFF), width: 1.6),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF7C4DFF),
+                          width: 1.6,
+                        ),
                       ),
                     ),
                   ),
@@ -145,7 +146,10 @@ class _PptxViewerState extends State<PptxViewer> {
                             Navigator.of(context).pop();
                           },
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.grey.shade400, width: 1.2),
+                            side: BorderSide(
+                              color: Colors.grey.shade400,
+                              width: 1.2,
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           child: const Text('취소'),
@@ -155,7 +159,9 @@ class _PptxViewerState extends State<PptxViewer> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
-                            final int? page = int.tryParse(controller.text.trim());
+                            final int? page = int.tryParse(
+                              controller.text.trim(),
+                            );
                             if (page == null) {
                               return;
                             }
@@ -185,90 +191,92 @@ class _PptxViewerState extends State<PptxViewer> {
   Widget build(BuildContext context) {
     return FutureBuilder<PptxPresentationData>(
       future: future,
-      builder: (BuildContext context, AsyncSnapshot<PptxPresentationData> snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      builder:
+          (BuildContext context, AsyncSnapshot<PptxPresentationData> snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        if (snapshot.hasError || !snapshot.hasData) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'PPTX 파일을 불러오는 중 오류가 발생했습니다',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Colors.black54),
-              ),
-            ),
-          );
-        }
-
-        final PptxPresentationData data = snapshot.data!;
-        if (data.slides.isEmpty) {
-          return const Center(
-            child: Text(
-              '슬라이드가 비어 있습니다',
-              style: TextStyle(fontSize: 14, color: Colors.black54),
-            ),
-          );
-        }
-
-        if (currentIndex < 0 || currentIndex >= data.slides.length) {
-          currentIndex = 0;
-        }
-
-        final bool isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-
-        if (isLandscape) {
-          return Row(
-            children: <Widget>[
-              Expanded(
-                child: PageView.builder(
-                  controller: pageController,
-                  itemCount: data.slides.length,
-                  onPageChanged: (int index) {
-                    setState(() {
-                      currentIndex = index;
-                    });
-                  },
-                  itemBuilder: (BuildContext context, int index) {
-                    return _buildSlidePage(
-                      data: data,
-                      slide: data.slides[index],
-                      isLandscape: true,
-                    );
-                  },
+            if (snapshot.hasError || !snapshot.hasData) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'PPTX 파일을 불러오는 중 오류가 발생했습니다',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14, color: Colors.black54),
+                  ),
                 ),
-              ),
-              _buildRightBar(data),
-            ],
-          );
-        }
+              );
+            }
 
-        return Column(
-          children: <Widget>[
-            Expanded(
-              child: PageView.builder(
-                controller: pageController,
-                itemCount: data.slides.length,
-                onPageChanged: (int index) {
-                  setState(() {
-                    currentIndex = index;
-                  });
-                },
-                itemBuilder: (BuildContext context, int index) {
-                  return _buildSlidePage(
-                    data: data,
-                    slide: data.slides[index],
-                    isLandscape: false,
-                  );
-                },
-              ),
-            ),
-            _buildBottomBar(data),
-          ],
-        );
-      },
+            final PptxPresentationData data = snapshot.data!;
+            if (data.slides.isEmpty) {
+              return const Center(
+                child: Text(
+                  '슬라이드가 비어 있습니다',
+                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                ),
+              );
+            }
+
+            if (currentIndex < 0 || currentIndex >= data.slides.length) {
+              currentIndex = 0;
+            }
+
+            final bool isLandscape =
+                MediaQuery.of(context).orientation == Orientation.landscape;
+
+            if (isLandscape) {
+              return Row(
+                children: <Widget>[
+                  Expanded(
+                    child: PageView.builder(
+                      controller: pageController,
+                      itemCount: data.slides.length,
+                      onPageChanged: (int index) {
+                        setState(() {
+                          currentIndex = index;
+                        });
+                      },
+                      itemBuilder: (BuildContext context, int index) {
+                        return _buildSlidePage(
+                          data: data,
+                          slide: data.slides[index],
+                          isLandscape: true,
+                        );
+                      },
+                    ),
+                  ),
+                  _buildRightBar(data),
+                ],
+              );
+            }
+
+            return Column(
+              children: <Widget>[
+                Expanded(
+                  child: PageView.builder(
+                    controller: pageController,
+                    itemCount: data.slides.length,
+                    onPageChanged: (int index) {
+                      setState(() {
+                        currentIndex = index;
+                      });
+                    },
+                    itemBuilder: (BuildContext context, int index) {
+                      return _buildSlidePage(
+                        data: data,
+                        slide: data.slides[index],
+                        isLandscape: false,
+                      );
+                    },
+                  ),
+                ),
+                _buildBottomBar(data),
+              ],
+            );
+          },
     );
   }
 
@@ -282,7 +290,8 @@ class _PptxViewerState extends State<PptxViewer> {
     final double frameBorderWidth = 1.2;
     final double innerPadding = isLandscape ? 6 : 12;
 
-    final double slideAspect = data.slideWidthEmu.toDouble() / data.slideHeightEmu.toDouble();
+    final double slideAspect =
+        data.slideWidthEmu.toDouble() / data.slideHeightEmu.toDouble();
 
     return Center(
       child: Padding(
@@ -291,7 +300,10 @@ class _PptxViewerState extends State<PptxViewer> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(frameRadius),
-            border: Border.all(color: Colors.grey.shade400, width: frameBorderWidth),
+            border: Border.all(
+              color: Colors.grey.shade400,
+              width: frameBorderWidth,
+            ),
             boxShadow: <BoxShadow>[
               BoxShadow(
                 color: Colors.black.withOpacity(0.08),
@@ -358,7 +370,8 @@ class _PptxViewerState extends State<PptxViewer> {
               itemBuilder: (BuildContext context, int index) {
                 final bool selected = index == currentIndex;
                 final PptxSlideData slide = data.slides[index];
-                final String title = (slide.title != null && slide.title!.trim().isNotEmpty)
+                final String title =
+                    (slide.title != null && slide.title!.trim().isNotEmpty)
                     ? slide.title!.trim()
                     : 'Slide ${index + 1}';
 
@@ -405,7 +418,10 @@ class _PptxViewerState extends State<PptxViewer> {
               },
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 child: Text(
                   '${currentIndex + 1} / ${data.slides.length}',
                   textAlign: TextAlign.center,
@@ -424,7 +440,8 @@ class _PptxViewerState extends State<PptxViewer> {
                 itemBuilder: (BuildContext context, int index) {
                   final bool selected = index == currentIndex;
                   final PptxSlideData slide = data.slides[index];
-                  final String title = (slide.title != null && slide.title!.trim().isNotEmpty)
+                  final String title =
+                      (slide.title != null && slide.title!.trim().isNotEmpty)
                       ? slide.title!.trim()
                       : 'Slide ${index + 1}';
 
@@ -457,7 +474,9 @@ class _PptxViewerState extends State<PptxViewer> {
     required String title,
     required bool selected,
   }) {
-    final Color borderColor = selected ? const Color(0xFF7C4DFF) : Colors.grey.shade400;
+    final Color borderColor = selected
+        ? const Color(0xFF7C4DFF)
+        : Colors.grey.shade400;
     final double borderWidth = selected ? 1.6 : 1.2;
 
     return SizedBox(
@@ -512,7 +531,9 @@ class _PptxViewerState extends State<PptxViewer> {
     required String title,
     required bool selected,
   }) {
-    final Color borderColor = selected ? const Color(0xFF7C4DFF) : Colors.grey.shade400;
+    final Color borderColor = selected
+        ? const Color(0xFF7C4DFF)
+        : Colors.grey.shade400;
     final double borderWidth = selected ? 1.6 : 1.2;
 
     return SizedBox(

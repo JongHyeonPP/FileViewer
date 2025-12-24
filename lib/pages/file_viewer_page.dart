@@ -5,7 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../services/file_service.dart';
 
 import '../viewers/text_viewer.dart';
-import '../viewers/docx_viewer.dart';
+import '../docx/docx_viewer.dart';
 import '../viewers/pdf_viewer.dart';
 import '../viewers/image_viewer.dart';
 
@@ -70,7 +70,8 @@ class FileViewerPageState extends State<FileViewerPage> {
   }
 
   Future<void> handlePickAnotherFile() async {
-    final ViewerPickResult? result = await widget.fileService.pickFileForViewer();
+    final ViewerPickResult? result = await widget.fileService
+        .pickFileForViewer();
 
     if (!mounted) {
       return;
@@ -84,11 +85,9 @@ class FileViewerPageState extends State<FileViewerPage> {
     if (result.hasError || result.file == null) {
       final AppLocalizations t = AppLocalizations.of(context)!;
       final String message = result.errorMessage ?? t.errorWhileOpeningFile;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
 
@@ -96,11 +95,9 @@ class FileViewerPageState extends State<FileViewerPage> {
 
     if (!file.isSupportedForInAppView) {
       final AppLocalizations t = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(t.unsupportedHere),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.unsupportedHere)));
       return;
     }
 
@@ -150,7 +147,9 @@ class FileViewerPageState extends State<FileViewerPage> {
             const Spacer(),
             IconButton(
               icon: Icon(
-                isLandscapeLocked ? Icons.stay_current_landscape : Icons.stay_current_portrait,
+                isLandscapeLocked
+                    ? Icons.stay_current_landscape
+                    : Icons.stay_current_portrait,
               ),
               onPressed: handleToggleOrientation,
               tooltip: '화면 회전',
@@ -176,10 +175,7 @@ class FileViewerPageState extends State<FileViewerPage> {
 
   Widget buildFileHeader(String fileName) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: 8,
-        horizontal: 12,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF5F5F5),
         borderRadius: BorderRadius.circular(6),
@@ -211,35 +207,22 @@ class FileViewerPageState extends State<FileViewerPage> {
 
   Widget buildContentArea() {
     if (currentFile.isDocx) {
-      return DocxViewer(
-        fileService: widget.fileService,
-        file: currentFile,
-      );
+      return DocxViewer(fileService: widget.fileService, file: currentFile);
     }
     if (currentFile.isPdf) {
-      return PdfViewerBody(
-        file: currentFile,
-      );
+      return PdfViewerBody(file: currentFile);
     }
     if (currentFile.isImage) {
-      return ImageViewerBody(
-        file: currentFile,
-      );
+      return ImageViewerBody(file: currentFile);
     }
     if (currentFile.isXlsx) {
-      return XlsxViewer(
-        file: currentFile,
-      );
+      return XlsxViewer(file: currentFile);
     }
     if (currentFile.isPptx) {
-      return PptxViewer(
-        file: currentFile,
-      );
+      return PptxViewer(file: currentFile);
     }
     if (currentFile.isTxt) {
-      return TextViewer(
-        file: currentFile,
-      );
+      return TextViewer(file: currentFile);
     }
 
     return const Center(
@@ -247,10 +230,7 @@ class FileViewerPageState extends State<FileViewerPage> {
         padding: EdgeInsets.all(16),
         child: Text(
           '현재 버전에서 이 파일 형식은 지원하지 않습니다',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.black54,
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.black54),
           textAlign: TextAlign.center,
         ),
       ),
@@ -266,29 +246,18 @@ class FileViewerPageState extends State<FileViewerPage> {
 
         return Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: maxWidth,
-            ),
+            constraints: const BoxConstraints(maxWidth: maxWidth),
             child: Container(
               color: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   buildFileHeader(fileName),
                   const SizedBox(height: 10),
-                  Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Colors.grey.shade300,
-                  ),
+                  Divider(height: 1, thickness: 1, color: Colors.grey.shade300),
                   const SizedBox(height: 12),
-                  Expanded(
-                    child: buildContentArea(),
-                  ),
+                  Expanded(child: buildContentArea()),
                 ],
               ),
             ),
@@ -333,7 +302,9 @@ class FileViewerPageState extends State<FileViewerPage> {
       actions: <Widget>[
         IconButton(
           icon: Icon(
-            isLandscapeLocked ? Icons.stay_current_landscape : Icons.stay_current_portrait,
+            isLandscapeLocked
+                ? Icons.stay_current_landscape
+                : Icons.stay_current_portrait,
           ),
           onPressed: handleToggleOrientation,
           tooltip: '화면 회전',
@@ -354,7 +325,8 @@ class FileViewerPageState extends State<FileViewerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final bool isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
     final double bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
@@ -367,17 +339,14 @@ class FileViewerPageState extends State<FileViewerPage> {
               bottom: false,
               child: Container(
                 color: const Color(0xFFF2F2F2),
-                child: isLandscape ? buildLandscapeBody(context) : buildPortraitBody(context),
+                child: isLandscape
+                    ? buildLandscapeBody(context)
+                    : buildPortraitBody(context),
               ),
             ),
           ),
-          Container(
-            height: 1,
-            color: Colors.black26,
-          ),
-          SizedBox(
-            height: bottomInset,
-          ),
+          Container(height: 1, color: Colors.black26),
+          SizedBox(height: bottomInset),
         ],
       ),
     );

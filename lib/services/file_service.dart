@@ -9,10 +9,7 @@ import 'package:open_filex/open_filex.dart';
 
 import 'supported_file_types.dart';
 
-enum TextEncoding {
-  utf8,
-  eucKr,
-}
+enum TextEncoding { utf8, eucKr }
 
 enum FileServiceErrorType {
   textEncodingUnknown,
@@ -35,6 +32,10 @@ class ViewerFile {
     required this.extension,
     required this.textContent,
   });
+
+  String get id {
+    return fileId;
+  }
 
   bool get isTxt {
     return SupportedFileTypes.isTextExtension(extension);
@@ -94,8 +95,9 @@ class _DecodedText {
 }
 
 class FileService {
-  static const MethodChannel _contentChannel =
-  MethodChannel('app.channel/file_content');
+  static const MethodChannel _contentChannel = MethodChannel(
+    'app.channel/file_content',
+  );
 
   List<String> _allSupportedExtensions() {
     final Set<String> set = <String>{
@@ -129,11 +131,7 @@ class FileService {
       mimeTypes: _allSupportedMimeTypes(),
     );
 
-    final XFile? file = await openFile(
-      acceptedTypeGroups: <XTypeGroup>[
-        group,
-      ],
-    );
+    final XFile? file = await openFile(acceptedTypeGroups: <XTypeGroup>[group]);
 
     if (file == null) {
       return null;
@@ -218,10 +216,7 @@ class FileService {
         );
       }
 
-      localPath = await _writeTempFile(
-        bytes: bytes,
-        extension: extension,
-      );
+      localPath = await _writeTempFile(bytes: bytes, extension: extension);
     }
 
     if (SupportedFileTypes.isTextExtension(extension)) {
@@ -278,10 +273,7 @@ class FileService {
       return _DecodedText(decoded, TextEncoding.utf8);
     } catch (_) {
       try {
-        final String decoded = await CharsetConverter.decode(
-          'euc-kr',
-          bytes,
-        );
+        final String decoded = await CharsetConverter.decode('euc-kr', bytes);
         return _DecodedText(decoded, TextEncoding.eucKr);
       } catch (_) {
         throw const FormatException('unknown encoding');
@@ -297,9 +289,7 @@ class FileService {
     try {
       final dynamic result = await _contentChannel.invokeMethod<dynamic>(
         'readBytes',
-        <String, dynamic>{
-          'fileId': fileId,
-        },
+        <String, dynamic>{'fileId': fileId},
       );
 
       if (result is Uint8List) {

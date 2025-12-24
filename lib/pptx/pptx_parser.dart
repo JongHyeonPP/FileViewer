@@ -31,8 +31,12 @@ class PptxParser {
       throw const FormatException('presentation not found');
     }
 
-    final xml.XmlDocument presentationDoc = xml.XmlDocument.parse(_asUtf8String(presentationFile));
-    final xml.XmlDocument relsDoc = xml.XmlDocument.parse(_asUtf8String(relsFile));
+    final xml.XmlDocument presentationDoc = xml.XmlDocument.parse(
+      _asUtf8String(presentationFile),
+    );
+    final xml.XmlDocument relsDoc = xml.XmlDocument.parse(
+      _asUtf8String(relsFile),
+    );
 
     int slideW = 9144000;
     int slideH = 6858000;
@@ -52,7 +56,10 @@ class PptxParser {
     final Map<String, String> presRelMap = _parseRelationships(relsDoc);
 
     final List<String> slideTargets = <String>[];
-    for (final xml.XmlElement sldId in _allByLocalName(presentationDoc, 'sldId')) {
+    for (final xml.XmlElement sldId in _allByLocalName(
+      presentationDoc,
+      'sldId',
+    )) {
       final String? rId = _attrLocal(sldId, 'id', prefix: 'r');
       if (rId == null || rId.isEmpty) {
         continue;
@@ -78,12 +85,14 @@ class PptxParser {
       final String slideRelsPath = 'ppt/slides/_rels/$slideFileName.rels';
       final ArchiveFile? slideRelsFile = fileMap[slideRelsPath];
 
-      final xml.XmlDocument slideDoc = xml.XmlDocument.parse(_asUtf8String(slideFile));
+      final xml.XmlDocument slideDoc = xml.XmlDocument.parse(
+        _asUtf8String(slideFile),
+      );
 
       final Map<String, String> slideRelMap = slideRelsFile != null
           ? _parseRelationships(
-        xml.XmlDocument.parse(_asUtf8String(slideRelsFile)),
-      )
+              xml.XmlDocument.parse(_asUtf8String(slideRelsFile)),
+            )
           : <String, String>{};
 
       final _SlideParseResult parsed = _parseSlide(
@@ -248,7 +257,9 @@ class PptxParser {
     required _PptxTransform parent,
   }) {
     final xml.XmlElement? grpSpPr = _firstChildByLocalName(grpSp, 'grpSpPr');
-    final xml.XmlElement? xfrm = grpSpPr != null ? _firstByLocalName(grpSpPr, 'xfrm') : null;
+    final xml.XmlElement? xfrm = grpSpPr != null
+        ? _firstByLocalName(grpSpPr, 'xfrm')
+        : null;
 
     if (xfrm == null) {
       return parent;
@@ -428,7 +439,8 @@ class PptxParser {
       return null;
     }
 
-    final PptxCropRect crop = _parseCropFromBlipFill(blipFill) ?? PptxCropRect.none;
+    final PptxCropRect crop =
+        _parseCropFromBlipFill(blipFill) ?? PptxCropRect.none;
 
     return PptxPicture(
       rect: rect,
@@ -483,17 +495,16 @@ class PptxParser {
 
     final xml.XmlElement? bodyPr = _firstByLocalName(txBody, 'bodyPr');
     if (bodyPr != null) {
-      final double lIns = double.tryParse(_attrLocal(bodyPr, 'lIns') ?? '') ?? 0;
-      final double tIns = double.tryParse(_attrLocal(bodyPr, 'tIns') ?? '') ?? 0;
-      final double rIns = double.tryParse(_attrLocal(bodyPr, 'rIns') ?? '') ?? 0;
-      final double bIns = double.tryParse(_attrLocal(bodyPr, 'bIns') ?? '') ?? 0;
+      final double lIns =
+          double.tryParse(_attrLocal(bodyPr, 'lIns') ?? '') ?? 0;
+      final double tIns =
+          double.tryParse(_attrLocal(bodyPr, 'tIns') ?? '') ?? 0;
+      final double rIns =
+          double.tryParse(_attrLocal(bodyPr, 'rIns') ?? '') ?? 0;
+      final double bIns =
+          double.tryParse(_attrLocal(bodyPr, 'bIns') ?? '') ?? 0;
 
-      paddingEmu = PptxPaddingEmu(
-        l: lIns,
-        t: tIns,
-        r: rIns,
-        b: bIns,
-      );
+      paddingEmu = PptxPaddingEmu(l: lIns, t: tIns, r: rIns, b: bIns);
 
       final String? a = _attrLocal(bodyPr, 'anchor');
       if (a == 'ctr') {
@@ -506,7 +517,9 @@ class PptxParser {
     }
 
     Color? backgroundColor;
-    final xml.XmlElement? bgSolid = bodyPr != null ? _firstByLocalName(bodyPr, 'solidFill') : null;
+    final xml.XmlElement? bgSolid = bodyPr != null
+        ? _firstByLocalName(bodyPr, 'solidFill')
+        : null;
     if (bgSolid != null) {
       final xml.XmlElement? srgb = _firstByLocalName(bgSolid, 'srgbClr');
       if (srgb != null) {
@@ -853,7 +866,8 @@ class PptxParser {
   }
 
   xml.XmlElement? _firstByLocalName(xml.XmlNode node, String local) {
-    for (final xml.XmlElement e in node.descendants.whereType<xml.XmlElement>()) {
+    for (final xml.XmlElement e
+        in node.descendants.whereType<xml.XmlElement>()) {
       if (e.name.local == local) {
         return e;
       }
@@ -861,8 +875,12 @@ class PptxParser {
     return null;
   }
 
-  Iterable<xml.XmlElement> _allByLocalName(xml.XmlNode node, String local) sync* {
-    for (final xml.XmlElement e in node.descendants.whereType<xml.XmlElement>()) {
+  Iterable<xml.XmlElement> _allByLocalName(
+    xml.XmlNode node,
+    String local,
+  ) sync* {
+    for (final xml.XmlElement e
+        in node.descendants.whereType<xml.XmlElement>()) {
       if (e.name.local == local) {
         yield e;
       }
@@ -881,11 +899,7 @@ class PptxParser {
     return null;
   }
 
-  String? _attrLocal(
-      xml.XmlElement element,
-      String local, {
-        String? prefix,
-      }) {
+  String? _attrLocal(xml.XmlElement element, String local, {String? prefix}) {
     for (final xml.XmlAttribute a in element.attributes) {
       if (a.name.local != local) {
         continue;

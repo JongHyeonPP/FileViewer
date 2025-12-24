@@ -53,9 +53,8 @@ class RecentFileEntry {
       displayPath: json['displayPath'] as String? ?? '',
       name: json['name'] as String? ?? '',
       extension: json['extension'] as String? ?? '',
-      lastOpenedAt: DateTime.tryParse(
-        json['lastOpenedAt'] as String? ?? '',
-      ) ??
+      lastOpenedAt:
+          DateTime.tryParse(json['lastOpenedAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
@@ -88,13 +87,12 @@ class RecentFilesStore extends ChangeNotifier {
       for (final String raw in rawList) {
         try {
           final Map<String, dynamic> map =
-          jsonDecode(raw) as Map<String, dynamic>;
+              jsonDecode(raw) as Map<String, dynamic>;
           final RecentFileEntry entry = RecentFileEntry.fromJson(map);
           if (entry.actualPath.isNotEmpty && entry.name.isNotEmpty) {
             _items.add(entry);
           }
-        } catch (_) {
-        }
+        } catch (_) {}
       }
     }
 
@@ -104,22 +102,23 @@ class RecentFilesStore extends ChangeNotifier {
 
   Future<void> _saveToStorage() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final List<String> rawList =
-    _items.map((RecentFileEntry e) => jsonEncode(e.toJson())).toList();
+    final List<String> rawList = _items
+        .map((RecentFileEntry e) => jsonEncode(e.toJson()))
+        .toList();
     await prefs.setStringList(_storageKey, rawList);
   }
 
   Future<void> addFromViewerFile(ViewerFile file) async {
-    final String cleanedDisplayPath =
-    _cleanDisplayPath(file.displayPath, file.path);
+    final String cleanedDisplayPath = _cleanDisplayPath(
+      file.displayPath,
+      file.path,
+    );
 
     final String name = _fileNameFromPath(
       cleanedDisplayPath.isNotEmpty ? cleanedDisplayPath : file.path,
     );
 
-    _items.removeWhere(
-          (RecentFileEntry e) => e.actualPath == file.fileId,
-    );
+    _items.removeWhere((RecentFileEntry e) => e.actualPath == file.fileId);
 
     _items.insert(
       0,

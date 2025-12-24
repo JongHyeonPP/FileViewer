@@ -10,10 +10,7 @@ import 'file_viewer_page.dart';
 class FileHomePage extends StatefulWidget {
   final FileService fileService;
 
-  const FileHomePage({
-    super.key,
-    required this.fileService,
-  });
+  const FileHomePage({super.key, required this.fileService});
 
   @override
   State<FileHomePage> createState() => FileHomePageState();
@@ -61,9 +58,9 @@ class FileHomePageState extends State<FileHomePage> {
   }
 
   String _errorMessageFor(
-      FileServiceErrorType errorType,
-      BuildContext context,
-      ) {
+    FileServiceErrorType errorType,
+    BuildContext context,
+  ) {
     final AppLocalizations t = AppLocalizations.of(context)!;
     switch (errorType) {
       case FileServiceErrorType.textEncodingUnknown:
@@ -107,17 +104,15 @@ class FileHomePageState extends State<FileHomePage> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(t.unsupportedHere),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.unsupportedHere)));
     }
   }
 
   Future<void> _openExplorer() async {
-    final ViewerPickResult? result =
-    await widget.fileService.pickFileForViewer();
+    final ViewerPickResult? result = await widget.fileService
+        .pickFileForViewer();
 
     if (result == null) {
       return;
@@ -130,16 +125,11 @@ class FileHomePageState extends State<FileHomePage> {
       final AppLocalizations t = AppLocalizations.of(context)!;
       String message = t.errorWhileOpeningFile;
       if (result.errorType != null) {
-        message = _errorMessageFor(
-          result.errorType!,
-          context,
-        );
+        message = _errorMessageFor(result.errorType!, context);
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
 
@@ -148,8 +138,7 @@ class FileHomePageState extends State<FileHomePage> {
   }
 
   Future<void> _openRecent(RecentFileEntry entry) async {
-    final ViewerPickResult result =
-    await widget.fileService.loadFileForViewer(
+    final ViewerPickResult result = await widget.fileService.loadFileForViewer(
       entry.actualPath,
       displayPath: entry.displayPath,
     );
@@ -161,17 +150,12 @@ class FileHomePageState extends State<FileHomePage> {
       final AppLocalizations t = AppLocalizations.of(context)!;
       String message = t.errorWhileOpeningFile;
       if (result.errorType != null) {
-        message = _errorMessageFor(
-          result.errorType!,
-          context,
-        );
+        message = _errorMessageFor(result.errorType!, context);
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
 
       await recentStore.removeByActualPath(entry.actualPath);
       return;
@@ -207,23 +191,12 @@ class FileHomePageState extends State<FileHomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.black87,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.black87, width: 1),
       ),
       child: ListTile(
         dense: true,
-        leading: Icon(
-          icon,
-          size: 22,
-          color: Colors.grey.shade800,
-        ),
-        title: Text(
-          entry.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        leading: Icon(icon, size: 22, color: Colors.grey.shade800),
+        title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         onTap: () => _openRecent(entry),
         trailing: Padding(
           padding: const EdgeInsets.only(right: 2),
@@ -237,16 +210,9 @@ class FileHomePageState extends State<FileHomePage> {
               height: 26,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.grey.shade600,
-                  width: 1.2,
-                ),
+                border: Border.all(color: Colors.grey.shade600, width: 1.2),
               ),
-              child: Icon(
-                Icons.close,
-                size: 16,
-                color: Colors.grey.shade800,
-              ),
+              child: Icon(Icons.close, size: 16, color: Colors.grey.shade800),
             ),
           ),
         ),
@@ -269,8 +235,9 @@ class FileHomePageState extends State<FileHomePage> {
       effectiveFilter = 'all';
     }
 
-    final String currentLabel =
-    effectiveFilter == 'all' ? t.filterAllFiles : _extensionLabel(effectiveFilter);
+    final String currentLabel = effectiveFilter == 'all'
+        ? t.filterAllFiles
+        : _extensionLabel(effectiveFilter);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
@@ -278,23 +245,24 @@ class FileHomePageState extends State<FileHomePage> {
         builder: (BuildContext context, BoxConstraints constraints) {
           final double menuWidth = constraints.maxWidth;
 
-          final List<PopupMenuEntry<String>> menuItems = <PopupMenuEntry<String>>[
-            PopupMenuItem<String>(
-              value: 'all',
-              child: SizedBox(
-                width: menuWidth,
-                child: Text(t.filterAllFiles),
-              ),
-            ),
-            for (final String ext in sortedExt)
-              PopupMenuItem<String>(
-                value: ext,
-                child: SizedBox(
-                  width: menuWidth,
-                  child: Text(_extensionLabel(ext)),
+          final List<PopupMenuEntry<String>> menuItems =
+              <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'all',
+                  child: SizedBox(
+                    width: menuWidth,
+                    child: Text(t.filterAllFiles),
+                  ),
                 ),
-              ),
-          ];
+                for (final String ext in sortedExt)
+                  PopupMenuItem<String>(
+                    value: ext,
+                    child: SizedBox(
+                      width: menuWidth,
+                      child: Text(_extensionLabel(ext)),
+                    ),
+                  ),
+              ];
 
           return PopupMenuButton<String>(
             onSelected: (String value) {
@@ -312,9 +280,7 @@ class FileHomePageState extends State<FileHomePage> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.grey.shade300,
-                ),
+                border: Border.all(color: Colors.grey.shade300),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -353,10 +319,7 @@ class FileHomePageState extends State<FileHomePage> {
           padding: const EdgeInsets.all(16),
           child: Text(
             t.noFilteredFiles,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black54,
-            ),
+            style: const TextStyle(fontSize: 14, color: Colors.black54),
           ),
         ),
       );
@@ -379,9 +342,7 @@ class FileHomePageState extends State<FileHomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade300,
-        ),
+        border: Border.all(color: Colors.grey.shade300),
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -398,17 +359,17 @@ class FileHomePageState extends State<FileHomePage> {
             child: hasAny
                 ? _buildFilteredList()
                 : Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  t.noRecentFiles,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        t.noRecentFiles,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -461,9 +422,7 @@ class FileHomePageState extends State<FileHomePage> {
         await _showExitDialog();
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(t.homeTitle),
-        ),
+        appBar: AppBar(title: Text(t.homeTitle)),
         body: Column(
           children: <Widget>[
             Padding(
@@ -483,13 +442,8 @@ class FileHomePageState extends State<FileHomePage> {
                 child: _buildRecentSection(),
               ),
             ),
-            Container(
-              height: 1,
-              color: Colors.black26,
-            ),
-            SizedBox(
-              height: bottomInset,
-            ),
+            Container(height: 1, color: Colors.black26),
+            SizedBox(height: bottomInset),
           ],
         ),
       ),

@@ -24,3 +24,6 @@ plugins {
 }
 
 include(":app")
+
+include(":libreoffice_viewer")
+project(":libreoffice_viewer").projectDir = file("C:/Users/USER/Documents/lo_clean/core/android/source")

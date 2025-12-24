@@ -6,10 +6,7 @@ import '../services/file_service.dart';
 class TextViewer extends StatelessWidget {
   final ViewerFile file;
 
-  const TextViewer({
-    super.key,
-    required this.file,
-  });
+  const TextViewer({super.key, required this.file});
 
   @override
   Widget build(BuildContext context) {
@@ -17,10 +14,7 @@ class TextViewer extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 16),
       child: SelectableText(
         file.textContent ?? '',
-        style: const TextStyle(
-          fontSize: 16,
-          height: 1.5,
-        ),
+        style: const TextStyle(fontSize: 16, height: 1.5),
       ),
     );
   }

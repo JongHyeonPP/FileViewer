@@ -21,10 +21,12 @@ class AppRoot extends StatefulWidget {
 }
 
 class _AppRootState extends State<AppRoot> {
-  static const MethodChannel _initChannel =
-  MethodChannel('app.channel/file_intent_init');
-  static const MethodChannel _eventsChannel =
-  MethodChannel('app.channel/file_intent_events');
+  static const MethodChannel _initChannel = MethodChannel(
+    'app.channel/file_intent_init',
+  );
+  static const MethodChannel _eventsChannel = MethodChannel(
+    'app.channel/file_intent_events',
+  );
 
   final FileService fileService = FileService();
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -44,8 +46,9 @@ class _AppRootState extends State<AppRoot> {
 
   Future<void> _loadInitialFile() async {
     try {
-      final dynamic result =
-      await _initChannel.invokeMethod<dynamic>('getInitialFile');
+      final dynamic result = await _initChannel.invokeMethod<dynamic>(
+        'getInitialFile',
+      );
 
       String? actualPath;
       String? displayPath;
@@ -56,10 +59,12 @@ class _AppRootState extends State<AppRoot> {
       }
 
       setState(() {
-        initialActualPath =
-        (actualPath != null && actualPath.isNotEmpty) ? actualPath : null;
-        initialDisplayPath =
-        (displayPath != null && displayPath.isNotEmpty) ? displayPath : initialActualPath;
+        initialActualPath = (actualPath != null && actualPath.isNotEmpty)
+            ? actualPath
+            : null;
+        initialDisplayPath = (displayPath != null && displayPath.isNotEmpty)
+            ? displayPath
+            : initialActualPath;
         initialLoaded = true;
       });
     } on PlatformException {
@@ -92,10 +97,7 @@ class _AppRootState extends State<AppRoot> {
     }
   }
 
-  Future<void> _openSharedFile(
-      String actualPath,
-      String? displayPath,
-      ) async {
+  Future<void> _openSharedFile(String actualPath, String? displayPath) async {
     final ViewerPickResult result = await fileService.loadFileForViewer(
       actualPath,
       displayPath: displayPath,
@@ -106,15 +108,12 @@ class _AppRootState extends State<AppRoot> {
     }
 
     if (result.hasError || result.file == null) {
-      final String message =
-          result.errorMessage ?? '파일을 여는 중 오류가 발생했습니다';
+      final String message = result.errorMessage ?? '파일을 여는 중 오류가 발생했습니다';
       final BuildContext? context = navigatorKey.currentContext;
       if (context != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
       return;
     }
@@ -124,10 +123,8 @@ class _AppRootState extends State<AppRoot> {
 
     navigatorKey.currentState?.push(
       MaterialPageRoute<void>(
-        builder: (BuildContext context) => FileViewerPage(
-          fileService: fileService,
-          initialFile: file,
-        ),
+        builder: (BuildContext context) =>
+            FileViewerPage(fileService: fileService, initialFile: file),
       ),
     );
   }
@@ -159,23 +156,16 @@ class _AppRootState extends State<AppRoot> {
         Locale('pt'),
       ],
       onGenerateTitle: (BuildContext context) =>
-      AppLocalizations.of(context)!.appTitle,
+          AppLocalizations.of(context)!.appTitle,
       home: initialLoaded
-          ? FileHomePage(
-        fileService: fileService,
-      )
+          ? FileHomePage(fileService: fileService)
           : const SizedBox.shrink(),
     );
 
     if (initialLoaded && !initialFileHandled && initialActualPath != null) {
-      WidgetsBinding.instance.addPostFrameCallback(
-            (_) {
-          _openSharedFile(
-            initialActualPath!,
-            initialDisplayPath,
-          );
-        },
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openSharedFile(initialActualPath!, initialDisplayPath);
+      });
       initialFileHandled = true;
     }
 

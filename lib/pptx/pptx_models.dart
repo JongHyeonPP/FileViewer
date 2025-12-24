@@ -44,9 +44,7 @@ class PptxRect {
 abstract class PptxSlideElement {
   final PptxRect rect;
 
-  const PptxSlideElement({
-    required this.rect,
-  });
+  const PptxSlideElement({required this.rect});
 }
 
 class PptxCropRect {
@@ -84,11 +82,7 @@ class PptxPicture extends PptxSlideElement {
   });
 }
 
-enum PptxVerticalAnchor {
-  top,
-  center,
-  bottom,
-}
+enum PptxVerticalAnchor { top, center, bottom }
 
 class PptxPaddingEmu {
   final double l;

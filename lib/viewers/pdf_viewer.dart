@@ -10,10 +10,7 @@ import '../services/file_service.dart';
 class PdfViewerBody extends StatefulWidget {
   final ViewerFile file;
 
-  const PdfViewerBody({
-    super.key,
-    required this.file,
-  });
+  const PdfViewerBody({super.key, required this.file});
 
   @override
   State<PdfViewerBody> createState() => _PdfViewerBodyState();
@@ -35,11 +32,7 @@ class _PdfViewerBodyState extends State<PdfViewerBody> {
         if (!_errorShown) {
           _errorShown = true;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${t.errorPdfDisplay}  ${details.error}',
-              ),
-            ),
+            SnackBar(content: Text('${t.errorPdfDisplay}  ${details.error}')),
           );
         }
       },

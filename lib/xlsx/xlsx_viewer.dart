@@ -14,10 +14,7 @@ import 'xlsx_zoom_controls.dart';
 class XlsxViewer extends StatefulWidget {
   final ViewerFile file;
 
-  const XlsxViewer({
-    super.key,
-    required this.file,
-  });
+  const XlsxViewer({super.key, required this.file});
 
   @override
   State<XlsxViewer> createState() => _XlsxViewerState();
@@ -162,68 +159,65 @@ class _XlsxViewerState extends State<XlsxViewer> {
   Widget build(BuildContext context) {
     return FutureBuilder<List<XlsxSheetData>>(
       future: future,
-      builder: (BuildContext context, AsyncSnapshot<List<XlsxSheetData>> snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      builder:
+          (BuildContext context, AsyncSnapshot<List<XlsxSheetData>> snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                '엑셀 파일을 불러오는 중 오류가 발생했습니다',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    '엑셀 파일을 불러오는 중 오류가 발생했습니다',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14, color: Colors.black54),
+                  ),
                 ),
-              ),
-            ),
-          );
-        }
-
-        final List<XlsxSheetData> sheets = snapshot.data ?? <XlsxSheetData>[];
-        if (sheets.isEmpty) {
-          return const Center(
-            child: Text(
-              '시트가 비어 있습니다',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black54,
-              ),
-            ),
-          );
-        }
-
-        if (selectedSheetIndex < 0 || selectedSheetIndex >= sheets.length) {
-          selectedSheetIndex = 0;
-        }
-
-        return LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final bool isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-            final bool useLandscapeLayout = isLandscape && constraints.maxWidth >= 600;
-
-            final XlsxSheetData currentSheet = sheets[selectedSheetIndex];
-            final _SheetGridInfo gridInfo = _calcGridInfo(currentSheet.rows);
-
-            if (useLandscapeLayout) {
-              return _buildLandscape(
-                constraints: constraints,
-                sheets: sheets,
-                currentSheet: currentSheet,
-                gridInfo: gridInfo,
               );
             }
 
-            return _buildPortrait(
-              sheets: sheets,
-              gridInfo: gridInfo,
+            final List<XlsxSheetData> sheets =
+                snapshot.data ?? <XlsxSheetData>[];
+            if (sheets.isEmpty) {
+              return const Center(
+                child: Text(
+                  '시트가 비어 있습니다',
+                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                ),
+              );
+            }
+
+            if (selectedSheetIndex < 0 || selectedSheetIndex >= sheets.length) {
+              selectedSheetIndex = 0;
+            }
+
+            return LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final bool isLandscape =
+                    MediaQuery.of(context).orientation == Orientation.landscape;
+                final bool useLandscapeLayout =
+                    isLandscape && constraints.maxWidth >= 600;
+
+                final XlsxSheetData currentSheet = sheets[selectedSheetIndex];
+                final _SheetGridInfo gridInfo = _calcGridInfo(
+                  currentSheet.rows,
+                );
+
+                if (useLandscapeLayout) {
+                  return _buildLandscape(
+                    constraints: constraints,
+                    sheets: sheets,
+                    currentSheet: currentSheet,
+                    gridInfo: gridInfo,
+                  );
+                }
+
+                return _buildPortrait(sheets: sheets, gridInfo: gridInfo);
+              },
             );
           },
-        );
-      },
     );
   }
 
@@ -251,10 +245,7 @@ class _XlsxViewerState extends State<XlsxViewer> {
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 child: Text(
                   '내용이 없는 시트입니다',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.black54),
                 ),
               ),
             ),
@@ -306,7 +297,10 @@ class _XlsxViewerState extends State<XlsxViewer> {
     required XlsxSheetData currentSheet,
     required _SheetGridInfo gridInfo,
   }) {
-    final double sidebarWidth = (constraints.maxWidth * 0.14).clamp(112.0, 142.0);
+    final double sidebarWidth = (constraints.maxWidth * 0.14).clamp(
+      112.0,
+      142.0,
+    );
 
     final Widget gridArea;
     if (gridInfo.columnCount == 0 || gridInfo.rows.isEmpty) {
@@ -316,10 +310,7 @@ class _XlsxViewerState extends State<XlsxViewer> {
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           child: Text(
             '내용이 없는 시트입니다',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black54,
-            ),
+            style: const TextStyle(fontSize: 14, color: Colors.black54),
           ),
         ),
       );
@@ -388,8 +379,5 @@ class _SheetGridInfo {
   final List<List<XlsxCell>> rows;
   final int columnCount;
 
-  const _SheetGridInfo({
-    required this.rows,
-    required this.columnCount,
-  });
+  const _SheetGridInfo({required this.rows, required this.columnCount});
 }

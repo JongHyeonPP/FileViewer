@@ -33,10 +33,7 @@ class XlsxSheetTabs extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF5F0FF),
         border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade300,
-            width: 0.8,
-          ),
+          top: BorderSide(color: Colors.grey.shade300, width: 0.8),
         ),
       ),
       child: ListView.builder(
@@ -192,7 +189,9 @@ class XlsxSheetTabs extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  color: selected ? const Color(0xFF5E35B1) : Colors.grey.shade800,
+                  color: selected
+                      ? const Color(0xFF5E35B1)
+                      : Colors.grey.shade800,
                 ),
               ),
             ),

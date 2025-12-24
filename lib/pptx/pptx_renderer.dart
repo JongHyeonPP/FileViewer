@@ -85,11 +85,7 @@ class PptxSlideWidget extends StatelessWidget {
         top: top,
         width: width,
         height: height,
-        child: _buildPicture(
-          pic: element,
-          width: width,
-          height: height,
-        ),
+        child: _buildPicture(pic: element, width: width, height: height),
       );
     }
 
@@ -128,8 +124,14 @@ class PptxSlideWidget extends StatelessWidget {
     );
 
     if (!pic.crop.isNone) {
-      final double visibleW = (1.0 - pic.crop.l - pic.crop.r).clamp(0.0001, 1.0);
-      final double visibleH = (1.0 - pic.crop.t - pic.crop.b).clamp(0.0001, 1.0);
+      final double visibleW = (1.0 - pic.crop.l - pic.crop.r).clamp(
+        0.0001,
+        1.0,
+      );
+      final double visibleH = (1.0 - pic.crop.t - pic.crop.b).clamp(
+        0.0001,
+        1.0,
+      );
 
       final double scaleX = 1.0 / visibleW;
       final double scaleY = 1.0 / visibleH;
@@ -175,7 +177,8 @@ class PptxSlideWidget extends StatelessWidget {
     final double padR = textBox.paddingEmu.r * scale;
     final double padB = textBox.paddingEmu.b * scale;
 
-    final Alignment boxAlign = textBox.verticalAnchor == PptxVerticalAnchor.center
+    final Alignment boxAlign =
+        textBox.verticalAnchor == PptxVerticalAnchor.center
         ? Alignment.centerLeft
         : textBox.verticalAnchor == PptxVerticalAnchor.bottom
         ? Alignment.bottomLeft
@@ -190,7 +193,8 @@ class PptxSlideWidget extends StatelessWidget {
       }
       firstParagraph = false;
 
-      final double indentPx = (p.leftMarginEmu + math.max(0, p.indentEmu)) * scale;
+      final double indentPx =
+          (p.leftMarginEmu + math.max(0, p.indentEmu)) * scale;
       if (indentPx > 0) {
         spans.add(WidgetSpan(child: SizedBox(width: indentPx)));
       }
@@ -200,7 +204,10 @@ class PptxSlideWidget extends StatelessWidget {
           TextSpan(
             text: '${p.bulletChar} ',
             style: TextStyle(
-              fontSize: _ptToCanvasPx(p.defaultFontSizePt, scale).clamp(1.0, 500.0),
+              fontSize: _ptToCanvasPx(
+                p.defaultFontSizePt,
+                scale,
+              ).clamp(1.0, 500.0),
               height: 1.2,
               color: p.defaultColor ?? Colors.black,
               fontWeight: FontWeight.w400,
@@ -220,7 +227,9 @@ class PptxSlideWidget extends StatelessWidget {
               height: 1.2,
               fontWeight: r.isBold ? FontWeight.w700 : FontWeight.w400,
               fontStyle: r.isItalic ? FontStyle.italic : FontStyle.normal,
-              decoration: r.isUnderline ? TextDecoration.underline : TextDecoration.none,
+              decoration: r.isUnderline
+                  ? TextDecoration.underline
+                  : TextDecoration.none,
               color: r.color ?? p.defaultColor ?? Colors.black,
               fontFamily: r.fontFamily,
             ),
@@ -231,7 +240,9 @@ class PptxSlideWidget extends StatelessWidget {
 
     final Widget rich = RichText(
       text: TextSpan(
-        children: spans.isEmpty ? <InlineSpan>[const TextSpan(text: '')] : spans,
+        children: spans.isEmpty
+            ? <InlineSpan>[const TextSpan(text: '')]
+            : spans,
       ),
       textAlign: textBox.textAlign,
       softWrap: true,

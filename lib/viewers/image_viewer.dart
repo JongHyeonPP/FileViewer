@@ -8,19 +8,13 @@ import '../services/file_service.dart';
 class ImageViewerBody extends StatelessWidget {
   final ViewerFile file;
 
-  const ImageViewerBody({
-    super.key,
-    required this.file,
-  });
+  const ImageViewerBody({super.key, required this.file});
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: InteractiveViewer(
-        child: Image.file(
-          File(file.path),
-          fit: BoxFit.contain,
-        ),
+        child: Image.file(File(file.path), fit: BoxFit.contain),
       ),
     );
   }

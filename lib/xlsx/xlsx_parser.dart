@@ -40,7 +40,8 @@ class XlsxParser {
     );
 
     final List<XlsxSheetData> result = <XlsxSheetData>[];
-    final List<String> sortedWorksheetKeys = worksheetFiles.keys.toList()..sort();
+    final List<String> sortedWorksheetKeys = worksheetFiles.keys.toList()
+      ..sort();
 
     for (int i = 0; i < sheetRefs.length; i += 1) {
       final _XlsxSheetRef ref = sheetRefs[i];
@@ -68,21 +69,11 @@ class XlsxParser {
         cellStyles: cellStyles,
       );
 
-      result.add(
-        XlsxSheetData(
-          sheetName: ref.sheetName,
-          rows: rows,
-        ),
-      );
+      result.add(XlsxSheetData(sheetName: ref.sheetName, rows: rows));
     }
 
     if (result.isEmpty) {
-      result.add(
-        XlsxSheetData(
-          sheetName: 'Sheet1',
-          rows: <List<XlsxCell>>[],
-        ),
-      );
+      result.add(XlsxSheetData(sheetName: 'Sheet1', rows: <List<XlsxCell>>[]));
     }
 
     return result;
@@ -94,13 +85,16 @@ class XlsxParser {
     }
 
     try {
-      final String xmlString = utf8.decode(sharedStringsFile.content as List<int>);
+      final String xmlString = utf8.decode(
+        sharedStringsFile.content as List<int>,
+      );
       final xml.XmlDocument doc = xml.XmlDocument.parse(xmlString);
 
       final List<String> sharedStrings = <String>[];
       for (final xml.XmlElement si in doc.findAllElements('si')) {
         final StringBuffer buffer = StringBuffer();
-        for (final xml.XmlElement t in si.descendants.whereType<xml.XmlElement>()) {
+        for (final xml.XmlElement t
+            in si.descendants.whereType<xml.XmlElement>()) {
           if (t.name.local == 't') {
             buffer.write(t.text);
           }
@@ -132,13 +126,16 @@ class XlsxParser {
       }
 
       final List<XlsxCellStyle> result = <XlsxCellStyle>[];
-      final Iterable<xml.XmlElement> xfElements = cellXfsElem.findAllElements('xf');
+      final Iterable<xml.XmlElement> xfElements = cellXfsElem.findAllElements(
+        'xf',
+      );
 
       for (final xml.XmlElement xf in xfElements) {
         XlsxHorizontalAlign align = XlsxHorizontalAlign.general;
 
         final String? applyAlignmentAttr = xf.getAttribute('applyAlignment');
-        final bool applyAlignment = applyAlignmentAttr == null || applyAlignmentAttr == '1';
+        final bool applyAlignment =
+            applyAlignmentAttr == null || applyAlignmentAttr == '1';
 
         if (applyAlignment) {
           xml.XmlElement? alignmentElem;
@@ -172,11 +169,7 @@ class XlsxParser {
           }
         }
 
-        result.add(
-          XlsxCellStyle(
-            horizontalAlign: align,
-          ),
-        );
+        result.add(XlsxCellStyle(horizontalAlign: align));
       }
 
       return result;
@@ -194,14 +187,18 @@ class XlsxParser {
 
     if (workbookFile != null && relsFile != null) {
       try {
-        final String workbookXml = utf8.decode(workbookFile.content as List<int>);
+        final String workbookXml = utf8.decode(
+          workbookFile.content as List<int>,
+        );
         final xml.XmlDocument workbookDoc = xml.XmlDocument.parse(workbookXml);
 
         final String relsXml = utf8.decode(relsFile.content as List<int>);
         final xml.XmlDocument relsDoc = xml.XmlDocument.parse(relsXml);
 
         final Map<String, String> relMap = <String, String>{};
-        for (final xml.XmlElement rel in relsDoc.findAllElements('Relationship')) {
+        for (final xml.XmlElement rel in relsDoc.findAllElements(
+          'Relationship',
+        )) {
           final String? id = rel.getAttribute('Id');
           final String? target = rel.getAttribute('Target');
           if (id != null && target != null) {
@@ -209,7 +206,9 @@ class XlsxParser {
           }
         }
 
-        for (final xml.XmlElement sheetElem in workbookDoc.findAllElements('sheet')) {
+        for (final xml.XmlElement sheetElem in workbookDoc.findAllElements(
+          'sheet',
+        )) {
           final String sheetName = sheetElem.getAttribute('name') ?? 'Sheet';
           final String? rId = _attrWithPrefix(sheetElem, 'id', 'r');
 
@@ -222,10 +221,7 @@ class XlsxParser {
           }
 
           sheetRefs.add(
-            _XlsxSheetRef(
-              sheetName: sheetName,
-              sheetPath: sheetPath,
-            ),
+            _XlsxSheetRef(sheetName: sheetName, sheetPath: sheetPath),
           );
         }
       } catch (_) {}
@@ -235,10 +231,7 @@ class XlsxParser {
       final List<String> keys = worksheetFiles.keys.toList()..sort();
       for (int i = 0; i < keys.length; i += 1) {
         sheetRefs.add(
-          _XlsxSheetRef(
-            sheetName: 'Sheet${i + 1}',
-            sheetPath: keys[i],
-          ),
+          _XlsxSheetRef(sheetName: 'Sheet${i + 1}', sheetPath: keys[i]),
         );
       }
     }
@@ -264,13 +257,17 @@ class XlsxParser {
     }
 
     final List<List<XlsxCell>> rows = <List<XlsxCell>>[];
-    final Iterable<xml.XmlElement> rowElements = sheetData.findAllElements('row');
+    final Iterable<xml.XmlElement> rowElements = sheetData.findAllElements(
+      'row',
+    );
 
     for (final xml.XmlElement rowElem in rowElements) {
       final Map<int, XlsxCell> cellMap = <int, XlsxCell>{};
       int maxColIndex = -1;
 
-      final Iterable<xml.XmlElement> cellElements = rowElem.findAllElements('c');
+      final Iterable<xml.XmlElement> cellElements = rowElem.findAllElements(
+        'c',
+      );
       for (final xml.XmlElement c in cellElements) {
         final String? ref = c.getAttribute('r');
         if (ref == null) {
@@ -303,7 +300,10 @@ class XlsxParser {
           if (vElem != null) {
             value = vElem.text;
           } else {
-            final xml.XmlElement? isElem = _firstChildElementByLocalName(c, 'is');
+            final xml.XmlElement? isElem = _firstChildElementByLocalName(
+              c,
+              'is',
+            );
             if (isElem != null) {
               value = _extractInlineStringFromCell(c);
             }
@@ -319,10 +319,7 @@ class XlsxParser {
           }
         }
 
-        cellMap[colIndex] = XlsxCell(
-          text: value,
-          horizontalAlign: align,
-        );
+        cellMap[colIndex] = XlsxCell(text: value, horizontalAlign: align);
 
         if (colIndex > maxColIndex) {
           maxColIndex = colIndex;
@@ -334,7 +331,10 @@ class XlsxParser {
         continue;
       }
 
-      final List<XlsxCell> rowValues = List<XlsxCell>.filled(maxColIndex + 1, XlsxCell.empty);
+      final List<XlsxCell> rowValues = List<XlsxCell>.filled(
+        maxColIndex + 1,
+        XlsxCell.empty,
+      );
       cellMap.forEach((int col, XlsxCell v) {
         if (col >= 0 && col < rowValues.length) {
           rowValues[col] = v;
@@ -354,7 +354,8 @@ class XlsxParser {
     }
 
     final StringBuffer buffer = StringBuffer();
-    for (final xml.XmlElement t in isElem.descendants.whereType<xml.XmlElement>()) {
+    for (final xml.XmlElement t
+        in isElem.descendants.whereType<xml.XmlElement>()) {
       if (t.name.local == 't') {
         buffer.write(t.text);
       }
@@ -362,7 +363,10 @@ class XlsxParser {
     return buffer.toString();
   }
 
-  xml.XmlElement? _firstChildElementByLocalName(xml.XmlElement parent, String local) {
+  xml.XmlElement? _firstChildElementByLocalName(
+    xml.XmlElement parent,
+    String local,
+  ) {
     for (final xml.XmlNode n in parent.children) {
       if (n is xml.XmlElement && n.name.local == local) {
         return n;
@@ -412,8 +416,5 @@ class _XlsxSheetRef {
   final String sheetName;
   final String? sheetPath;
 
-  const _XlsxSheetRef({
-    required this.sheetName,
-    required this.sheetPath,
-  });
+  const _XlsxSheetRef({required this.sheetName, required this.sheetPath});
 }

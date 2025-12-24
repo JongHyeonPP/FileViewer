@@ -57,20 +57,12 @@ class XlsxGrid extends StatelessWidget {
 
       final List<Widget> rowCells = <Widget>[];
       rowCells.add(
-        _buildRowHeaderCell(
-          (r + 1).toString(),
-          isFirstDataRow: isFirstDataRow,
-        ),
+        _buildRowHeaderCell((r + 1).toString(), isFirstDataRow: isFirstDataRow),
       );
 
       for (int c = 0; c < columnCount; c += 1) {
         final XlsxCell cell = c < row.length ? row[c] : XlsxCell.empty;
-        rowCells.add(
-          _buildDataCell(
-            cell,
-            isFirstDataRow: isFirstDataRow,
-          ),
-        );
+        rowCells.add(_buildDataCell(cell, isFirstDataRow: isFirstDataRow));
       }
 
       tableRows.add(TableRow(children: rowCells));
@@ -80,10 +72,7 @@ class XlsxGrid extends StatelessWidget {
       key: ValueKey<int>(selectionClearVersion),
       child: Table(
         defaultColumnWidth: FixedColumnWidth(cellWidth),
-        border: TableBorder.all(
-          color: Colors.grey.shade300,
-          width: 0.5,
-        ),
+        border: TableBorder.all(color: Colors.grey.shade300, width: 0.5),
         children: tableRows,
       ),
     );
@@ -95,14 +84,13 @@ class XlsxGrid extends StatelessWidget {
         const double bottomPadding = 18;
 
         final Widget content = ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: constraints.maxHeight,
-          ),
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
           child: Align(
             alignment: Alignment.topLeft,
             child: NotificationListener<ScrollNotification>(
               onNotification: (ScrollNotification notification) {
-                if (notification.metrics.axis == Axis.horizontal && notification is ScrollUpdateNotification) {
+                if (notification.metrics.axis == Axis.horizontal &&
+                    notification is ScrollUpdateNotification) {
                   onUserHorizontalScroll();
                 }
                 return false;
@@ -111,11 +99,13 @@ class XlsxGrid extends StatelessWidget {
                 controller: horizontalController,
                 scrollDirection: Axis.horizontal,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(sidePadding, topPadding, sidePadding, bottomPadding),
-                  child: SizedBox(
-                    width: tableWidth,
-                    child: table,
+                  padding: const EdgeInsets.fromLTRB(
+                    sidePadding,
+                    topPadding,
+                    sidePadding,
+                    bottomPadding,
                   ),
+                  child: SizedBox(width: tableWidth, child: table),
                 ),
               ),
             ),
@@ -190,10 +180,7 @@ class XlsxGrid extends StatelessWidget {
   Widget _buildCornerHeaderCell() {
     return const TableCell(
       verticalAlignment: TableCellVerticalAlignment.fill,
-      child: ColoredBox(
-        color: Color(0xFFF3F3F3),
-        child: SizedBox.expand(),
-      ),
+      child: ColoredBox(color: Color(0xFFF3F3F3), child: SizedBox.expand()),
     );
   }
 
@@ -211,20 +198,16 @@ class XlsxGrid extends StatelessWidget {
           text,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: scaled(11),
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaled(11)),
         ),
       ),
     );
   }
 
-  Widget _buildRowHeaderCell(
-      String text, {
-        required bool isFirstDataRow,
-      }) {
-    final Color bg = isFirstDataRow ? const Color(0xFFF3F3F3) : const Color(0xFFF7F7F7);
+  Widget _buildRowHeaderCell(String text, {required bool isFirstDataRow}) {
+    final Color bg = isFirstDataRow
+        ? const Color(0xFFF3F3F3)
+        : const Color(0xFFF7F7F7);
 
     return TableCell(
       verticalAlignment: TableCellVerticalAlignment.fill,
@@ -249,10 +232,7 @@ class XlsxGrid extends StatelessWidget {
     );
   }
 
-  Widget _buildDataCell(
-      XlsxCell cell, {
-        required bool isFirstDataRow,
-      }) {
+  Widget _buildDataCell(XlsxCell cell, {required bool isFirstDataRow}) {
     Alignment alignment;
     TextAlign textAlign;
 
@@ -277,10 +257,7 @@ class XlsxGrid extends StatelessWidget {
 
     return Container(
       color: bg,
-      padding: EdgeInsets.symmetric(
-        vertical: scaled(4),
-        horizontal: scaled(4),
-      ),
+      padding: EdgeInsets.symmetric(vertical: scaled(4), horizontal: scaled(4)),
       alignment: alignment,
       child: SelectableText(
         cell.text,
@@ -340,8 +317,11 @@ class _HorizontalScrollIndicator extends StatelessWidget {
           thumbFraction = 1.0;
         }
 
-        final double scrollFraction = maxScrollExtent == 0 ? 0 : position.pixels / maxScrollExtent;
-        final double thumbLeftFraction = (scrollFraction * (1 - thumbFraction)).clamp(0.0, 1.0 - thumbFraction);
+        final double scrollFraction = maxScrollExtent == 0
+            ? 0
+            : position.pixels / maxScrollExtent;
+        final double thumbLeftFraction = (scrollFraction * (1 - thumbFraction))
+            .clamp(0.0, 1.0 - thumbFraction);
 
         return LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {

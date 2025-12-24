@@ -54,11 +54,7 @@ class XlsxZoomButtonBar extends StatelessWidget {
     const double iconSize = 16;
 
     Widget buildIcon(IconData icon) {
-      return Icon(
-        icon,
-        size: iconSize,
-        color: Colors.black87,
-      );
+      return Icon(icon, size: iconSize, color: Colors.black87);
     }
 
     return Material(
@@ -149,10 +145,7 @@ class XlsxZoomSidebarPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        XlsxZoomButtonBar(
-          onZoomOut: onZoomOut,
-          onZoomIn: onZoomIn,
-        ),
+        XlsxZoomButtonBar(onZoomOut: onZoomOut, onZoomIn: onZoomIn),
       ],
     );
   }

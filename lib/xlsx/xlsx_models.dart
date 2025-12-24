@@ -1,20 +1,13 @@
 // lib/xlsx/xlsx_models.dart
 import 'package:flutter/foundation.dart';
 
-enum XlsxHorizontalAlign {
-  left,
-  center,
-  right,
-  general,
-}
+enum XlsxHorizontalAlign { left, center, right, general }
 
 @immutable
 class XlsxCellStyle {
   final XlsxHorizontalAlign horizontalAlign;
 
-  const XlsxCellStyle({
-    required this.horizontalAlign,
-  });
+  const XlsxCellStyle({required this.horizontalAlign});
 
   static const XlsxCellStyle general = XlsxCellStyle(
     horizontalAlign: XlsxHorizontalAlign.general,
@@ -26,10 +19,7 @@ class XlsxCell {
   final String text;
   final XlsxHorizontalAlign horizontalAlign;
 
-  const XlsxCell({
-    required this.text,
-    required this.horizontalAlign,
-  });
+  const XlsxCell({required this.text, required this.horizontalAlign});
 
   static const XlsxCell empty = XlsxCell(
     text: '',
@@ -44,8 +34,5 @@ class XlsxSheetData {
   final String sheetName;
   final List<List<XlsxCell>> rows;
 
-  const XlsxSheetData({
-    required this.sheetName,
-    required this.rows,
-  });
+  const XlsxSheetData({required this.sheetName, required this.rows});
 }
